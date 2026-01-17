@@ -111,7 +111,4 @@ fi
 
 # Run the Runner
 echo "✅ Runner Configured. Listening for jobs..."
-# #region agent log
-echo "{\"timestamp\":$(date +%s%3N),\"location\":\"entrypoint.sh:113\",\"message\":\"Starting runner with run.sh\",\"data\":{\"repo_url\":\"${REPO_URL}\",\"runner_name\":\"${RUNNER_NAME:-pi-docker-runner}\"},\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"A\"}" >> /tmp/runner_debug.log 2>&1 || true
-# #endregion agent log
 ./run.sh
