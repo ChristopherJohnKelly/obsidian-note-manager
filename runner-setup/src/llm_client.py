@@ -4,21 +4,28 @@ from google.generativeai.types import GenerationConfig
 
 
 class LLMClient:
-    def __init__(self, model_name="gemini-2.5-flash"):
+    def __init__(self, model_name="gemini-2.5-flash", system_instruction=None):
         """
         Initialise the Gemini Client.
         Expects GEMINI_API_KEY to be set in environment variables.
         
         Args:
             model_name: Name of the Gemini model to use (default: "gemini-2.5-flash")
+            system_instruction: Optional system instruction to pass to the model (default: None)
         """
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("❌ Error: GEMINI_API_KEY environment variable not set.")
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
-        print(f"🤖 LLM Client initialized with model: {model_name}")
+        
+        # Pass system instruction to model if provided
+        if system_instruction:
+            self.model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
+            print(f"🤖 LLM Client initialized with model: {model_name} (with system instruction)")
+        else:
+            self.model = genai.GenerativeModel(model_name)
+            print(f"🤖 LLM Client initialized with model: {model_name}")
 
     def generate_content(self, prompt: str) -> str:
         """
