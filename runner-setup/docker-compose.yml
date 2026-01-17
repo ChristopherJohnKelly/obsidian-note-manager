@@ -13,4 +13,8 @@ services:
       REPO_URL: "https://github.com/christopherjohnkelly/obsidian-notes"
       GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"
       RUNNER_NAME: "pi-librarian"
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+    # Uncomment the following volume mount for development (allows code changes without rebuild)
+    # volumes:
+    #   - ./src:/home/runner/src
     restart: unless-stopped

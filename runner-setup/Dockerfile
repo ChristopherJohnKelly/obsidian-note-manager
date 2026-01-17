@@ -32,7 +32,10 @@ USER runner
 # We install these globally in the container for the runner user
 RUN pip3 install --user google-generativeai python-frontmatter gitpython
 
-# 6. Copy Startup Script
+# 6. Copy Application Source Code
+COPY --chown=runner:runner src ./src
+
+# 7. Copy Startup Script
 COPY --chown=runner:runner entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
