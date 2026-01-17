@@ -1,0 +1,9 @@
+# Environment variables with sensitive tokens
+.env
+
+# GitHub Actions runner work directory
+_work/
+
+# Runner configuration files (contain sensitive tokens)
+.runner
+.env.runner

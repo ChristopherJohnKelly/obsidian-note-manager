@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  librarian-runner:
+    build:
+      context: .
+      args:
+        # Change to 'x64' if running on non-Apple Silicon Mac
+        RUNNER_ARCH: arm64 
+    image: obs-librarian-runner
+    environment:
+      # Pass these in a .env file
+      REPO_URL: "https://github.com/christopherjohnkelly/obsidian-notes"
+      GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"
+      RUNNER_NAME: "pi-librarian"
+    restart: unless-stopped
