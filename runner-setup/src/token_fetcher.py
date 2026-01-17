@@ -33,13 +33,33 @@ def get_registration_token(repo_url: str, pat: str) -> str:
     # GitHub API endpoint for registration tokens
     api_url = f"https://api.github.com/repos/{owner}/{repo_name}/actions/runners/registration-token"
     
-    headers = {
+    # Try both token formats (classic PAT uses "token", fine-grained might need "Bearer")
+    headers_token = {
         "Authorization": f"token {pat}",
         "Accept": "application/vnd.github.v3+json"
     }
     
+    headers_bearer = {
+        "Authorization": f"Bearer {pat}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
     try:
-        response = requests.post(api_url, headers=headers, timeout=10)
+        # Try with "token" format first (for classic PATs)
+        response = requests.post(api_url, headers=headers_token, timeout=10)
+        
+        # If 403 with token format, try Bearer format (for fine-grained PATs)
+        if response.status_code == 403:
+            response = requests.post(api_url, headers=headers_bearer, timeout=10)
+        
+        # Get response details for error messages
+        response_text = response.text
+        try:
+            response_json = response.json()
+            error_message = response_json.get("message", "")
+        except:
+            error_message = response_text[:200] if response_text else ""
+        
         response.raise_for_status()
         
         token_data = response.json()
@@ -51,20 +71,33 @@ def get_registration_token(repo_url: str, pat: str) -> str:
         return registration_token
         
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 401:
+        response = e.response
+        status_code = response.status_code if response else None
+        try:
+            error_json = response.json() if response else {}
+            error_message = error_json.get("message", response.text[:200] if response else "Unknown error")
+        except:
+            error_message = response.text[:200] if response else "Unknown error"
+        
+        if status_code == 401:
             raise requests.HTTPError(f"Authentication failed: Invalid PAT or insufficient permissions. "
                                     f"Ensure PAT has 'repo' scope or fine-grained 'Actions: Read and write' permission. "
-                                    f"Status: {e.response.status_code}", response=e.response)
-        elif e.response.status_code == 404:
+                                    f"Error: {error_message} Status: {status_code}", response=response)
+        elif status_code == 404:
             raise requests.HTTPError(f"Repository not found or no access: {owner}/{repo_name}. "
-                                    f"Check repository URL and PAT permissions. Status: {e.response.status_code}", 
-                                    response=e.response)
-        elif e.response.status_code == 403:
-            raise requests.HTTPError(f"Forbidden: PAT may not have required permissions. "
-                                    f"Status: {e.response.status_code}", response=e.response)
+                                    f"Check repository URL and PAT permissions. "
+                                    f"Error: {error_message} Status: {status_code}", 
+                                    response=response)
+        elif status_code == 403:
+            raise requests.HTTPError(f"Forbidden: PAT may not have required permissions or fine-grained token not installed. "
+                                    f"Fine-grained tokens must be installed/authorized for the repository. "
+                                    f"Error: {error_message} Status: {status_code}. "
+                                    f"Verify the token is installed for {owner}/{repo_name} at: "
+                                    f"https://github.com/settings/tokens?type=beta", 
+                                    response=response)
         else:
-            raise requests.HTTPError(f"GitHub API error: {e.response.status_code} - {e.response.text}", 
-                                    response=e.response)
+            raise requests.HTTPError(f"GitHub API error: {status_code} - {error_message}", 
+                                    response=response)
     except requests.exceptions.RequestException as e:
         raise Exception(f"Network error while fetching registration token: {e}")
 
