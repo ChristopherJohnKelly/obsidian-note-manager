@@ -1,4 +1,4 @@
-from src.llm_client import LLMClient
+from llm_client import LLMClient
 import os
 
 
