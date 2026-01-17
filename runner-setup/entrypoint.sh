@@ -14,7 +14,8 @@ if [[ ! "$REPO_URL" =~ ^https://github\.com/[^/]+(/[^/]+)?$ ]]; then
 fi
 
 # Check if runner is already configured
-if [ -f ".runner" ]; then
+# .runner is a FILE created by config.sh (not a directory)
+if [ -f ".runner" ] && [ -s ".runner" ]; then
   echo "✅ Runner already configured. Starting runner..."
   ./run.sh
   exit 0
@@ -37,8 +38,12 @@ if [ -n "$GITHUB_PAT" ]; then
     echo "" >&2
     echo "   This usually means:" >&2
     echo "   1. PAT is invalid or expired" >&2
-    echo "   2. PAT doesn't have required permissions (needs 'repo' scope or 'Actions: Read and write')" >&2
-    echo "   3. Repository URL is incorrect or no access" >&2
+    echo "   2. Using fine-grained PAT (fine-grained PATs don't support registration token API)" >&2
+    echo "   3. PAT doesn't have 'repo' scope (Classic PAT required, not fine-grained)" >&2
+    echo "   4. Repository URL is incorrect or no access" >&2
+    echo "" >&2
+    echo "   Solution: Use a Classic PAT with 'repo' scope at:" >&2
+    echo "   https://github.com/settings/tokens (select 'Tokens (classic)')" >&2
     exit 1
   fi
   
@@ -75,7 +80,14 @@ if [ $CONFIG_EXIT_CODE -ne 0 ]; then
   echo "$CONFIG_OUTPUT" >&2
   
   # Provide helpful error messages
-  if echo "$CONFIG_OUTPUT" | grep -q "404\|NotFound"; then
+  if echo "$CONFIG_OUTPUT" | grep -q "Access to the path\|denied"; then
+    echo "" >&2
+    echo "❌ Permission denied error accessing .runner directory." >&2
+    echo "   This usually means the volume mount has incorrect permissions." >&2
+    echo "   Try removing the volume and recreating the container:" >&2
+    echo "   docker compose down -v" >&2
+    echo "   docker compose up -d" >&2
+  elif echo "$CONFIG_OUTPUT" | grep -q "404\|NotFound"; then
     echo "" >&2
     echo "❌ Registration failed with 404 Not Found error." >&2
     echo "   This usually means:" >&2
@@ -99,4 +111,7 @@ fi
 
 # Run the Runner
 echo "✅ Runner Configured. Listening for jobs..."
+# #region agent log
+echo "{\"timestamp\":$(date +%s%3N),\"location\":\"entrypoint.sh:113\",\"message\":\"Starting runner with run.sh\",\"data\":{\"repo_url\":\"${REPO_URL}\",\"runner_name\":\"${RUNNER_NAME:-pi-docker-runner}\"},\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"A\"}" >> /tmp/runner_debug.log 2>&1 || true
+# #endregion agent log
 ./run.sh

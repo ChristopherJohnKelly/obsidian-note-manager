@@ -99,7 +99,21 @@ def get_registration_token(repo_url: str, pat: str) -> str:
             raise requests.HTTPError(f"GitHub API error: {status_code} - {error_message}", 
                                     response=response)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Network error while fetching registration token: {e}")
+        # Handle all request exceptions with detailed error info
+        error_msg = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_json = e.response.json()
+                error_message = error_json.get("message", e.response.text[:200])
+            except:
+                error_message = e.response.text[:200] if e.response.text else str(e)
+            status_code = e.response.status_code
+            raise Exception(f"GitHub API error: {status_code} - {error_message}. Full error: {error_msg}")
+        else:
+            raise Exception(f"Network error while fetching registration token: {error_msg}")
+    except Exception as e:
+        # Catch any other unexpected exceptions
+        raise Exception(f"Unexpected error while fetching registration token: {type(e).__name__}: {str(e)}")
 
 
 def main():
@@ -114,8 +128,28 @@ def main():
     try:
         token = get_registration_token(repo_url, pat)
         print(token)
+    except requests.HTTPError as e:
+        # HTTPError from requests library
+        error_msg = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_json = e.response.json()
+                api_message = error_json.get("message", "")
+            except:
+                api_message = e.response.text[:200] if e.response.text else ""
+            status_code = e.response.status_code
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if api_message:
+                print(f"GitHub API message: {api_message}", file=sys.stderr)
+            print(f"Status code: {status_code}", file=sys.stderr)
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        # Generic exception handler with full error details
+        import traceback
+        print(f"Error: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
         sys.exit(1)
 
 

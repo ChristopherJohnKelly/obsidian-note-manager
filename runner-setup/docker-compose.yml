@@ -20,9 +20,7 @@ services:
     #   - ./src:/home/runner/src
     restart: unless-stopped
     volumes:
-      # Persist runner configuration to avoid re-registration on restart
-      - runner-config:/home/runner/.runner
+      # Note: .runner config persistence removed due to permission issues
+      # With PAT-based token fetching, re-registration is automatic and painless
+      # If persistence needed later, use a file copy approach instead of direct mount
       - ./test_note.md:/home/runner/test_note.md
-
-volumes:
-  runner-config:

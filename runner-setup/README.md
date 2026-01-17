@@ -23,17 +23,19 @@ You have two options for authentication:
 
 #### Option A: Personal Access Token (RECOMMENDED)
 
+**Note**: For runner registration token API, you need a **Classic PAT** (not fine-grained). Fine-grained PATs currently don't support the registration token endpoint.
+
 1. Go to: **GitHub** → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
-   - Or create a fine-grained token: **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
-2. Click **Generate new token** (classic or fine-grained)
+2. Click **Generate new token (classic)**
 3. Give it a name like "Raspberry Pi Runner"
-4. Select scopes/permissions:
-   - **Classic PAT**: Select `repo` scope (full control)
-   - **Fine-grained PAT**: Select "Actions: Read and write" permission
-5. Click **Generate token** and copy it (you won't see it again!)
-6. Set `GITHUB_PAT` in your `.env` file
+4. Select expiration (e.g., "No expiration" or custom)
+5. **Select scopes**: Check `repo` scope (full control) - this is required for repo-level runner registration
+6. Click **Generate token** and copy it (starts with `ghp_`, you won't see it again!)
+7. Set `GITHUB_PAT` in your `.env` file
 
 **Benefits**: Token doesn't expire quickly, runner automatically fetches registration tokens when needed.
+
+**Important**: Fine-grained PATs with "Actions: Read and write" permission do NOT work with the registration token API endpoint. You must use a Classic PAT with `repo` scope for this feature.
 
 #### Option B: Direct Registration Token (LEGACY)
 
