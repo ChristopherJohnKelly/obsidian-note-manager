@@ -1,36 +1,19 @@
 #!/bin/bash
 set -e
 
-# #region agent log
-LOG_FILE="/home/runner/.cursor/debug.log"
-mkdir -p "$(dirname "$LOG_FILE")"
-log_debug() {
-  local log_entry="{\"timestamp\":$(date +%s000),\"location\":\"entrypoint.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"registration\",\"hypothesisId\":\"$4\"}"
-  echo "$log_entry" >> "$LOG_FILE"
-  echo "[DEBUG] $log_entry" >&2
-}
-# #endregion agent log
-
 # Check required inputs
 if [ -z "$GITHUB_TOKEN" ]; then
-  log_debug "5" "GITHUB_TOKEN not set" "{}" "H2"
   echo "Error: GITHUB_TOKEN is not set."
   exit 1
 fi
 
 if [ -z "$REPO_URL" ]; then
-  log_debug "10" "REPO_URL not set" "{}" "H3"
   echo "Error: REPO_URL is not set."
   exit 1
 fi
 
-# #region agent log
-log_debug "14" "Environment variables check" "{\"token_length\":${#GITHUB_TOKEN},\"repo_url\":\"${REPO_URL}\",\"repo_url_prefix\":\"${REPO_URL:0:50}...\",\"runner_name\":\"${RUNNER_NAME:-pi-docker-runner}\",\"url_format_valid\":$([ "${REPO_URL#https://github.com/}" != "$REPO_URL" ] && echo true || echo false)}" "H1,H2,H3"
-# #endregion agent log
-
 # Validate URL format
 if [[ ! "$REPO_URL" =~ ^https://github\.com/[^/]+(/[^/]+)?$ ]]; then
-  log_debug "18" "Invalid REPO_URL format" "{\"repo_url\":\"${REPO_URL}\",\"expected_format\":\"https://github.com/OWNER/REPO\"}" "H3"
   echo "Error: REPO_URL must be in format: https://github.com/OWNER/REPO"
   exit 1
 fi
@@ -38,12 +21,7 @@ fi
 # Configure the Runner
 # --unattended: Don't ask for prompts
 # --replace: Overwrite existing runner with same name
-# #region agent log
-log_debug "25" "About to run config.sh" "{\"url\":\"${REPO_URL}\",\"name\":\"${RUNNER_NAME:-pi-docker-runner}\",\"token_first_chars\":\"${GITHUB_TOKEN:0:10}...\"}" "H1,H2,H3,H4"
-# #endregion agent log
-
-# Capture config.sh output for debugging
-# Temporarily disable set -e to capture exit code
+# Temporarily disable set -e to capture exit code and provide helpful errors
 set +e
 CONFIG_OUTPUT=$(./config.sh \
     --url "${REPO_URL}" \
@@ -56,13 +34,8 @@ CONFIG_OUTPUT=$(./config.sh \
 CONFIG_EXIT_CODE=$?
 set -e
 
-# #region agent log
-log_debug "40" "config.sh completed" "{\"exit_code\":$CONFIG_EXIT_CODE,\"output_lines\":$(echo "$CONFIG_OUTPUT" | wc -l),\"has_404\":$(echo "$CONFIG_OUTPUT" | grep -q "404\|NotFound" && echo true || echo false),\"has_expired\":$(echo "$CONFIG_OUTPUT" | grep -qi "expired\|invalid" && echo true || echo false)}" "H1,H2,H3,H4,H5"
-# #endregion agent log
-
 if [ $CONFIG_EXIT_CODE -ne 0 ]; then
   echo "$CONFIG_OUTPUT" >&2
-  log_debug "45" "config.sh failed with output" "{\"exit_code\":$CONFIG_EXIT_CODE,\"output\":\"$(echo "$CONFIG_OUTPUT" | head -5 | tr '\n' ';')\"}" "H1,H2,H3,H4,H5"
   
   # Provide helpful error messages
   if echo "$CONFIG_OUTPUT" | grep -q "404\|NotFound"; then

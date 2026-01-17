@@ -35,10 +35,7 @@ RUN pip3 install --user google-generativeai python-frontmatter gitpython
 # 6. Copy Application Source Code
 COPY --chown=runner:runner src ./src
 
-# 7. Create debug log directory (as runner user)
-RUN mkdir -p /home/runner/.cursor
-
-# 8. Copy Startup Script
+# 7. Copy Startup Script
 COPY --chown=runner:runner entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
