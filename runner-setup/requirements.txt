@@ -1,0 +1,15 @@
+# Python dependencies for Obsidian Note Manager
+# Install with: pip3 install -r requirements.txt
+
+# AI/ML
+google-generativeai>=0.3.0
+
+# File processing
+python-frontmatter>=1.0.0
+pyyaml>=6.0
+
+# Git operations
+gitpython>=3.1.0
+
+# GitHub API calls (for token fetching)
+requests>=2.31.0

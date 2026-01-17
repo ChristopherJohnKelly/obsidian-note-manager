@@ -30,7 +30,7 @@ USER runner
 
 # 5. Pre-install Python Dependencies (to speed up runs)
 # We install these globally in the container for the runner user
-RUN pip3 install --user google-generativeai python-frontmatter gitpython pyyaml
+RUN pip3 install --user google-generativeai python-frontmatter gitpython pyyaml requests
 
 # 6. Copy Application Source Code
 COPY --chown=runner:runner src ./src

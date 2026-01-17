@@ -17,14 +17,32 @@ This directory contains the Docker setup for a self-hosted GitHub Actions runner
 
 ## Setup Instructions
 
-### Step 1: Get a Runner Registration Token
+### Step 1: Configure GitHub Authentication
+
+You have two options for authentication:
+
+#### Option A: Personal Access Token (RECOMMENDED)
+
+1. Go to: **GitHub** → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
+   - Or create a fine-grained token: **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+2. Click **Generate new token** (classic or fine-grained)
+3. Give it a name like "Raspberry Pi Runner"
+4. Select scopes/permissions:
+   - **Classic PAT**: Select `repo` scope (full control)
+   - **Fine-grained PAT**: Select "Actions: Read and write" permission
+5. Click **Generate token** and copy it (you won't see it again!)
+6. Set `GITHUB_PAT` in your `.env` file
+
+**Benefits**: Token doesn't expire quickly, runner automatically fetches registration tokens when needed.
+
+#### Option B: Direct Registration Token (LEGACY)
 
 1. Go to your GitHub repository: `https://github.com/christopherjohnkelly/obsidian-notes`
 2. Navigate to: **Settings** → **Actions** → **Runners** → **New self-hosted runner**
 3. Look at the `config.sh` command shown in the instructions
 4. Copy the token string after `--token` (this is your `GITHUB_RUNNER_TOKEN`)
 
-**Note**: Registration tokens expire quickly (typically within 1 hour). You'll need to get a fresh token if the container is restarted after the token expires.
+**Note**: Registration tokens expire quickly (typically within 1 hour). You'll need to get a fresh token if the container is restarted after the token expires. **Use Option A instead for automatic token management.**
 
 ### Step 2: Configure Environment Variables
 
@@ -34,10 +52,21 @@ This directory contains the Docker setup for a self-hosted GitHub Actions runner
    ```
 
 2. Edit `.env` and fill in your values:
+   
+   **Using PAT (recommended)**:
    ```bash
-   GITHUB_RUNNER_TOKEN=your_actual_token_here
+   GITHUB_PAT=ghp_your_personal_access_token_here
    REPO_URL=https://github.com/christopherjohnkelly/obsidian-notes
    RUNNER_NAME=pi-librarian
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+   
+   **Using registration token (legacy)**:
+   ```bash
+   GITHUB_RUNNER_TOKEN=your_registration_token_here
+   REPO_URL=https://github.com/christopherjohnkelly/obsidian-notes
+   RUNNER_NAME=pi-librarian
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
 ### Step 3: Build and Run
@@ -57,7 +86,11 @@ This directory contains the Docker setup for a self-hosted GitHub Actions runner
    docker compose logs -f
    ```
 
-   You should see: `✅ Runner Configured. Listening for jobs...`
+   **Using PAT**: You should see: `🔑 Fetching registration token using PAT...` followed by `✅ Runner Configured. Listening for jobs...`
+   
+   **Using registration token**: You should see: `✅ Runner Configured. Listening for jobs...`
+   
+   **Subsequent starts**: If `.runner` config exists, you'll see: `✅ Runner already configured. Starting runner...`
 
 ### Step 4: Verify in GitHub
 

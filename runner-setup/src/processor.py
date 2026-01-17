@@ -1,7 +1,17 @@
 import os
-from .llm_client import LLMClient
-from .context_loader import ContextLoader
-from .yaml_parser import extract_yaml_from_response, parse_frontmatter
+import sys
+from pathlib import Path
+
+# Handle both relative and absolute imports
+try:
+    from .llm_client import LLMClient
+    from .context_loader import ContextLoader
+    from .yaml_parser import extract_yaml_from_response, parse_frontmatter
+except ImportError:
+    # Fallback for when run as script
+    from llm_client import LLMClient
+    from context_loader import ContextLoader
+    from yaml_parser import extract_yaml_from_response, parse_frontmatter
 
 SYSTEM_PROMPT = """
 You are the Head Librarian of a strict Obsidian Vault. 

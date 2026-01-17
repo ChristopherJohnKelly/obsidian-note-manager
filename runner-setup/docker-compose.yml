@@ -11,10 +11,18 @@ services:
     environment:
       # Pass these in a .env file
       REPO_URL: "https://github.com/christopherjohnkelly/obsidian-notes"
-      GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"
+      GITHUB_PAT: "${GITHUB_PAT}"
+      GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"  # Legacy: kept for backward compatibility
       RUNNER_NAME: "pi-librarian"
       GEMINI_API_KEY: "${GEMINI_API_KEY}"
     # Uncomment the following volume mount for development (allows code changes without rebuild)
     # volumes:
     #   - ./src:/home/runner/src
     restart: unless-stopped
+    volumes:
+      # Persist runner configuration to avoid re-registration on restart
+      - runner-config:/home/runner/.runner
+      - ./test_note.md:/home/runner/test_note.md
+
+volumes:
+  runner-config:

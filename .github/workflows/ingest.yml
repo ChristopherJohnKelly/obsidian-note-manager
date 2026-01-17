@@ -1,0 +1,29 @@
+name: Obsidian Ingestion Pipeline
+
+on:
+  push:
+    paths:
+      - '00. Inbox/0. Capture/**/*.md'  # Only trigger on markdown files in Capture
+    branches:
+      - main  # Adjust if your branch is 'master'
+
+permissions:
+  contents: write
+
+jobs:
+  librarian:
+    runs-on: self-hosted  # Targets your Pi
+    steps:
+      - name: Checkout Vault
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # Needed for push permission
+
+      - name: Run Librarian
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # Passed from GitHub Secrets
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}  # Set vault root to workspace
+        run: |
+          echo "📂 Starting Ingestion..."
+          # The Docker container already has dependencies installed globally
+          python3 src/main.py
