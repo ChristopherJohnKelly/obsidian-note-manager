@@ -1,4 +1,5 @@
 import os
+import frontmatter
 from pathlib import Path
 
 
@@ -34,6 +35,43 @@ class ContextLoader:
             print(f"❌ Error reading {relative_path}: {e}")
             return ""
 
+    def build_code_registry(self) -> str:
+        """
+        Dynamically scans Areas and Projects directories to build a Code Registry table.
+        Extracts code, type, name (filename), and folder from frontmatter of all .md files.
+        
+        Returns:
+            str: Markdown table string with Code Registry entries
+        """
+        registry = ["| Code | Name | Type | Folder |", "| :--- | :--- | :--- | :--- |"]
+        scan_paths = [
+            self.vault_root / "30. Areas",
+            self.vault_root / "20. Projects"
+        ]
+        
+        for root_path in scan_paths:
+            if not root_path.exists():
+                continue
+                
+            for file_path in root_path.rglob("*.md"):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        post = frontmatter.loads(f.read())
+                    
+                    code = post.metadata.get("code")
+                    if not code:
+                        continue  # Skip files without code (silently)
+                    
+                    name = file_path.stem
+                    type_val = post.metadata.get("type", "")
+                    folder = str(file_path.relative_to(self.vault_root).parent)
+                    
+                    registry.append(f"| {code} | {name} | {type_val} | {folder} |")
+                except Exception:
+                    continue  # Skip files with errors (I/O, parsing, etc.)
+        
+        return "\n".join(registry)
+
     def get_full_context(self) -> str:
         """
         Aggregates all context files into a single string.
@@ -50,8 +88,8 @@ class ContextLoader:
         glossary = self.read_file("00. Inbox/00. Tag Glossary.md")
         
         # 3. Code Registry (The Project Codes)
-        # Note: Ensure this file exists or the AI won't know your codes!
-        registry = self.read_file("00. Inbox/00. Code Registry.md")
+        # Dynamically scanned from Areas and Projects directories
+        registry = self.build_code_registry()
 
         return f"""
 === SYSTEM INSTRUCTIONS ===
