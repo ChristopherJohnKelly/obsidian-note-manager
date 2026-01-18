@@ -2,6 +2,12 @@
 
 This directory contains the Docker setup for a self-hosted GitHub Actions runner that will run on a Raspberry Pi. The runner is configured to automatically register with GitHub and listen for jobs from the obsidian-notes repository.
 
+> 📚 **For comprehensive documentation**, see the [docs/](../docs/) folder in the project root:
+> - [Setup Guide](../docs/setup.md) - Detailed installation instructions
+> - [Architecture Overview](../docs/architecture.md) - System architecture
+> - [Component Documentation](../docs/components.md) - Component details
+> - [Troubleshooting Guide](../docs/troubleshooting.md) - Common issues and solutions
+
 ## Architecture
 
 - **Base Image**: Ubuntu 22.04
