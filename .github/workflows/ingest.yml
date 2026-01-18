@@ -3,7 +3,8 @@ name: Obsidian Ingestion Pipeline
 on:
   push:
     paths:
-      - '00. Inbox/0. Capture/**/*.md'  # Only trigger on markdown files in Capture
+      - '00. Inbox/0. Capture/**/*.md'  # Trigger on new captures
+      - '00. Inbox/1. Review Queue/**/*.md'  # Trigger on review queue changes (librarian: file)
     branches:
       - master  # Branch is 'master'
 
