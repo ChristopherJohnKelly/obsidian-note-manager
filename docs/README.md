@@ -57,6 +57,15 @@ Common issues, solutions, and debugging tips. Covers:
 - Container startup issues
 - General debugging techniques
 
+### [Pi Offline Troubleshooting](troubleshooting-pi-offline.md)
+Comprehensive guide for Raspberry Pi-specific runner offline issues. Covers:
+- Network connectivity diagnostics
+- Firewall and proxy issues
+- Runner process debugging
+- Time synchronization
+- DNS resolution problems
+- Advanced debugging techniques
+
 ## 📚 Documentation Guide
 
 ### New to the Project?

@@ -15,7 +15,8 @@ WORKDIR /home/runner
 
 # 3. Install GH Runner (ARM64 for Raspberry Pi)
 # Note: Changing architecture to 'x64' if testing on Intel/AMD Mac
-ARG RUNNER_VERSION="2.311.0"
+# Updated to 2.331.0 to match auto-update version (prevents update issues)
+ARG RUNNER_VERSION="2.331.0"
 ARG RUNNER_ARCH="arm64" 
 
 RUN curl -o actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz -L \

@@ -70,6 +70,8 @@ docker compose up -d
 
 **Symptoms**: Runner appears in GitHub UI but shows as "Offline" (gray) instead of "Idle" (green)
 
+> 🔧 **For Raspberry Pi-specific offline issues**, see the comprehensive [Pi Offline Troubleshooting Guide](troubleshooting-pi-offline.md)
+
 **Possible Causes**:
 
 ### 1. Container Not Running
