@@ -12,7 +12,7 @@ This document explains the GitHub Actions workflow configuration and how it inte
 
 ## Workflow Structure
 
-```yaml
+```yaml.
 name: Obsidian Ingestion Pipeline
 
 on:
