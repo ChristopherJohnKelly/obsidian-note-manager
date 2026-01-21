@@ -2,6 +2,13 @@ import os
 import frontmatter
 from pathlib import Path
 
+# Handle both relative and absolute imports
+try:
+    from .indexer import VaultIndexer
+except ImportError:
+    # Fallback for when run as script
+    from indexer import VaultIndexer
+
 
 class ContextLoader:
     def __init__(self, vault_root: str):
@@ -12,6 +19,7 @@ class ContextLoader:
             vault_root: Path to the root of the Obsidian vault
         """
         self.vault_root = Path(vault_root)
+        self.indexer = VaultIndexer(vault_root)
 
     def read_file(self, relative_path: str) -> str:
         """
@@ -77,7 +85,7 @@ class ContextLoader:
         Aggregates all context files into a single string.
         
         Returns:
-            str: Combined context from System Instructions, Tag Glossary, and Code Registry
+            str: Combined context from System Instructions, Tag Glossary, Code Registry, and Vault Map
         """
         # 1. System Instructions (The Rules)
         instructions = self.read_file(
@@ -90,6 +98,9 @@ class ContextLoader:
         # 3. Code Registry (The Project Codes)
         # Dynamically scanned from Areas and Projects directories
         registry = self.build_code_registry()
+        
+        # 4. Vault Map (The Skeleton Graph for Deep Linking)
+        skeleton = self.indexer.build_skeleton()
 
         return f"""
 === SYSTEM INSTRUCTIONS ===
@@ -100,4 +111,7 @@ class ContextLoader:
 
 === CODE REGISTRY ===
 {registry}
+
+=== VAULT MAP (Use these for Deep Links) ===
+{skeleton}
 """

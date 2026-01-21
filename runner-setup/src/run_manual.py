@@ -33,6 +33,11 @@ def main():
     print(f"📁 Using vault root: {vault_root}")
     processor = NoteProcessor(vault_root)
     
+    # Show vault index count for verification
+    skeleton = processor.loader.indexer.build_skeleton()
+    index_count = len([line for line in skeleton.split('\n') if line.strip()]) if skeleton else 0
+    print(f"📊 Vault index: {index_count} entries")
+    
     print("🤖 Analyzing with Gemini (this may take 5-10s)...")
     try:
         result = processor.process_note(content)
