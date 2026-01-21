@@ -116,21 +116,30 @@ def main():
                 with open(file_path, "r", encoding="utf-8") as f:
                     raw_content = f.read()
 
-                # Clean existing frontmatter from body
-                clean_body = clean_markdown(raw_content)
-
-                # AI Magic - Get metadata dict from processor
-                metadata_dict = processor.process_note(clean_body)
+                # Process note - returns complete proposal note string
+                proposal_note = processor.process_note(raw_content)
                 
-                # Set ephemeral property for review workflow
-                metadata_dict['librarian'] = 'review'
-                
-                # Get title from metadata or use original filename
-                title = metadata_dict.get('title', file_path.stem)
-                
-                # Sanitize filename
-                safe_filename = sanitize_filename(title)
-                new_filename = f"{safe_filename}.md"
+                # Parse frontmatter to get filename
+                try:
+                    post = frontmatter.loads(proposal_note)
+                    files_to_create = post.metadata.get('files-to-create', [])
+                    
+                    # Generate filename from first file in proposal
+                    if files_to_create and len(files_to_create) > 0:
+                        first_file = Path(files_to_create[0])
+                        base_name = first_file.stem
+                    else:
+                        # Fallback: use timestamp
+                        import time
+                        base_name = f"proposal-{int(time.time())}"
+                    
+                    safe_filename = sanitize_filename(base_name)
+                    new_filename = f"{safe_filename}.md"
+                except Exception as e:
+                    # If parsing fails, use original filename
+                    print(f"⚠️ Warning: Could not parse proposal frontmatter: {e}")
+                    safe_filename = sanitize_filename(file_path.stem)
+                    new_filename = f"{safe_filename}.md"
                 
                 # Construct target path
                 target_path = REVIEW_DIR / new_filename
@@ -142,12 +151,9 @@ def main():
                     target_path = REVIEW_DIR / new_filename
                     counter += 1
                 
-                # Create frontmatter Post with cleaned body + metadata
-                final_note = frontmatter.Post(clean_body, **metadata_dict)
-                
-                # Write to Review Queue
+                # Write proposal note directly to Review Queue
                 with open(target_path, "w", encoding="utf-8") as f:
-                    f.write(frontmatter.dumps(final_note))
+                    f.write(proposal_note)
                 
                 print(f"✅ Saved to: {target_path.name}")
                 
