@@ -70,7 +70,7 @@ class StateManager:
 
     def record_scan(self, rel_path: str, score: int):
         """
-        Record that a file was scanned (not yet proposed).
+        Record that a file was scanned and proposed as a maintenance candidate.
         
         Args:
             rel_path: Relative path to the file from vault root
@@ -82,7 +82,9 @@ class StateManager:
         if rel_path not in self.history["files"]:
             self.history["files"][rel_path] = {}
         
-        self.history["files"][rel_path]["last_scanned"] = datetime.now().isoformat()
+        now = datetime.now().isoformat()
+        self.history["files"][rel_path]["last_scanned"] = now
+        self.history["files"][rel_path]["last_proposed"] = now
         self.history["files"][rel_path]["last_score"] = score
 
     def filter_candidates(self, candidates: list) -> list:

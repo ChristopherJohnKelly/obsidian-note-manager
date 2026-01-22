@@ -43,15 +43,14 @@ class ContextLoader:
             print(f"❌ Error reading {relative_path}: {e}")
             return ""
 
-    def build_code_registry(self) -> str:
+    def _scan_code_files(self) -> list:
         """
-        Dynamically scans Areas and Projects directories to build a Code Registry table.
-        Extracts code, type, name (filename), and folder from frontmatter of all .md files.
+        Common scanning logic to extract code information from Areas and Projects directories.
         
         Returns:
-            str: Markdown table string with Code Registry entries
+            list: List of dicts with keys: code, name, type, folder
         """
-        registry = ["| Code | Name | Type | Folder |", "| :--- | :--- | :--- | :--- |"]
+        results = []
         scan_paths = [
             self.vault_root / "30. Areas",
             self.vault_root / "20. Projects"
@@ -74,9 +73,29 @@ class ContextLoader:
                     type_val = post.metadata.get("type", "")
                     folder = str(file_path.relative_to(self.vault_root).parent)
                     
-                    registry.append(f"| {code} | {name} | {type_val} | {folder} |")
+                    results.append({
+                        "code": code,
+                        "name": name,
+                        "type": type_val,
+                        "folder": folder
+                    })
                 except Exception:
                     continue  # Skip files with errors (I/O, parsing, etc.)
+        
+        return results
+
+    def build_code_registry(self) -> str:
+        """
+        Dynamically scans Areas and Projects directories to build a Code Registry table.
+        Extracts code, type, name (filename), and folder from frontmatter of all .md files.
+        
+        Returns:
+            str: Markdown table string with Code Registry entries
+        """
+        registry = ["| Code | Name | Type | Folder |", "| :--- | :--- | :--- | :--- |"]
+        
+        for entry in self._scan_code_files():
+            registry.append(f"| {entry['code']} | {entry['name']} | {entry['type']} | {entry['folder']} |")
         
         return "\n".join(registry)
 
@@ -89,28 +108,9 @@ class ContextLoader:
             Example: {"20. Projects/Pepsi": "PEPS", "30. Areas/Clients/Coca-Cola": "COKE"}
         """
         registry = {}
-        scan_paths = [
-            self.vault_root / "30. Areas",
-            self.vault_root / "20. Projects"
-        ]
         
-        for root_path in scan_paths:
-            if not root_path.exists():
-                continue
-                
-            for file_path in root_path.rglob("*.md"):
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        post = frontmatter.loads(f.read())
-                    
-                    code = post.metadata.get("code")
-                    if not code:
-                        continue
-                    
-                    folder = str(file_path.relative_to(self.vault_root).parent)
-                    registry[folder] = code
-                except Exception:
-                    continue
+        for entry in self._scan_code_files():
+            registry[entry["folder"]] = entry["code"]
         
         return registry
 
