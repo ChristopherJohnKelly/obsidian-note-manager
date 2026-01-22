@@ -1,6 +1,13 @@
 import frontmatter
 from pathlib import Path
 
+# Handle both relative and absolute imports
+try:
+    from .vault_utils import is_excluded
+except ImportError:
+    # Fallback for when run as script
+    from vault_utils import is_excluded
+
 
 class VaultIndexer:
     def __init__(self, vault_root: str):
@@ -11,36 +18,11 @@ class VaultIndexer:
             vault_root: Path to the root of the Obsidian vault
         """
         self.vault_root = Path(vault_root)
-        self.excluded_dirs = {
-            "00. Inbox",
-            "99. System",
-            ".git",
-            ".obsidian",
-            ".trash"
-        }
         self.scan_dirs = [
             "30. Areas",
             "20. Projects",
             "40. Resources"
         ]
-
-    def _is_excluded(self, path: Path) -> bool:
-        """
-        Check if a path is in an excluded directory.
-        
-        Args:
-            path: Full path to check
-            
-        Returns:
-            bool: True if path should be excluded
-        """
-        try:
-            rel_path = path.relative_to(self.vault_root)
-            parts = rel_path.parts
-            return any(excluded in parts for excluded in self.excluded_dirs)
-        except ValueError:
-            # Path is not relative to vault_root
-            return True
 
     def _normalize_aliases(self, aliases) -> list:
         """
@@ -84,7 +66,7 @@ class VaultIndexer:
                 continue
             
             for file_path in scan_path.rglob("*.md"):
-                if self._is_excluded(file_path):
+                if is_excluded(file_path, self.vault_root):
                     continue
                 
                 try:

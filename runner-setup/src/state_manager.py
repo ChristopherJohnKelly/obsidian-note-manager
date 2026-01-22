@@ -25,7 +25,18 @@ class StateManager:
         if self.history_file.exists():
             try:
                 with open(self.history_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # Validate structure: ensure 'files' is a dict
+                    if not isinstance(data, dict):
+                        print(f"⚠️ Warning: History file has invalid root structure, using defaults")
+                        return {"last_run": None, "files": {}}
+                    # Ensure 'files' key exists and is a dict
+                    if "files" not in data or not isinstance(data.get("files"), dict):
+                        data["files"] = {}
+                    # Ensure 'last_run' is None or a string
+                    if "last_run" in data and not (data["last_run"] is None or isinstance(data["last_run"], str)):
+                        data["last_run"] = None
+                    return data
             except Exception as e:
                 print(f"⚠️ Warning: Failed to load history: {e}")
                 return {"last_run": None, "files": {}}
@@ -52,10 +63,15 @@ class StateManager:
         Returns:
             bool: True if cooldown is active (should skip), False otherwise
         """
-        if rel_path not in self.history.get("files", {}):
+        files = self.history.get("files", {})
+        if not isinstance(files, dict) or rel_path not in files:
             return False
         
-        last_proposed_str = self.history["files"][rel_path].get("last_proposed")
+        file_entry = files[rel_path]
+        if not isinstance(file_entry, dict):
+            return False
+        
+        last_proposed_str = file_entry.get("last_proposed")
         if not last_proposed_str:
             return False
 
@@ -76,16 +92,17 @@ class StateManager:
             rel_path: Relative path to the file from vault root
             score: Quality deficit score
         """
-        if "files" not in self.history:
+        if "files" not in self.history or not isinstance(self.history.get("files"), dict):
             self.history["files"] = {}
         
-        if rel_path not in self.history["files"]:
-            self.history["files"][rel_path] = {}
+        files = self.history["files"]
+        if rel_path not in files or not isinstance(files.get(rel_path), dict):
+            files[rel_path] = {}
         
         now = datetime.now().isoformat()
-        self.history["files"][rel_path]["last_scanned"] = now
-        self.history["files"][rel_path]["last_proposed"] = now
-        self.history["files"][rel_path]["last_score"] = score
+        files[rel_path]["last_scanned"] = now
+        files[rel_path]["last_proposed"] = now
+        files[rel_path]["last_score"] = score
 
     def filter_candidates(self, candidates: list) -> list:
         """

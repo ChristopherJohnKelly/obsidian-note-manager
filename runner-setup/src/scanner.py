@@ -1,6 +1,13 @@
 import frontmatter
 from pathlib import Path
 
+# Handle both relative and absolute imports
+try:
+    from .vault_utils import is_excluded
+except ImportError:
+    # Fallback for when run as script
+    from vault_utils import is_excluded
+
 
 class VaultScanner:
     def __init__(self, vault_root: str, context_loader):
@@ -13,32 +20,7 @@ class VaultScanner:
         """
         self.vault_root = Path(vault_root)
         self.registry = context_loader.get_project_registry()
-        self.excluded_dirs = {
-            "99. System",
-            "00. Inbox",
-            ".git",
-            ".obsidian",
-            ".trash"
-        }
         self.bad_titles = {"untitled", "meeting", "note", "call"}
-
-    def _is_excluded(self, path: Path) -> bool:
-        """
-        Check if a path is in an excluded directory.
-        
-        Args:
-            path: Full path to check
-            
-        Returns:
-            bool: True if path should be excluded
-        """
-        try:
-            rel_path = path.relative_to(self.vault_root)
-            parts = rel_path.parts
-            return any(excluded in parts for excluded in self.excluded_dirs)
-        except ValueError:
-            # Path is not relative to vault_root
-            return True
 
     def _find_expected_code(self, folder_path: str) -> str:
         """
@@ -120,7 +102,7 @@ class VaultScanner:
                 continue
             
             for file_path in root_dir.rglob("*.md"):
-                if self._is_excluded(file_path):
+                if is_excluded(file_path, self.vault_root):
                     continue
                 
                 score, reasons = self._score_file(file_path)
