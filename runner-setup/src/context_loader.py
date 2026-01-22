@@ -80,6 +80,40 @@ class ContextLoader:
         
         return "\n".join(registry)
 
+    def get_project_registry(self) -> dict:
+        """
+        Builds a dictionary mapping folder paths to project codes.
+        
+        Returns:
+            dict: Mapping of folder paths (relative to vault root) to codes
+            Example: {"20. Projects/Pepsi": "PEPS", "30. Areas/Clients/Coca-Cola": "COKE"}
+        """
+        registry = {}
+        scan_paths = [
+            self.vault_root / "30. Areas",
+            self.vault_root / "20. Projects"
+        ]
+        
+        for root_path in scan_paths:
+            if not root_path.exists():
+                continue
+                
+            for file_path in root_path.rglob("*.md"):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        post = frontmatter.loads(f.read())
+                    
+                    code = post.metadata.get("code")
+                    if not code:
+                        continue
+                    
+                    folder = str(file_path.relative_to(self.vault_root).parent)
+                    registry[folder] = code
+                except Exception:
+                    continue
+        
+        return registry
+
     def get_full_context(self) -> str:
         """
         Aggregates all context files into a single string.
