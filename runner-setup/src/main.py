@@ -90,24 +90,7 @@ def main():
     REVIEW_DIR.mkdir(parents=True, exist_ok=True)
     
     # 2. Phase 1: Filing Approved Notes
-    # #region agent log
-    import json
-    from pathlib import Path
-    try:
-        log_path = Path(VAULT_ROOT) / ".cursor" / "debug.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "main.py:93", "message": "calling file_approved_notes", "data": {"vault_root": str(VAULT_ROOT)}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-    except: pass
-    # #endregion
     filed_count = filer.file_approved_notes()
-    # #region agent log
-    try:
-        log_path = Path(VAULT_ROOT) / ".cursor" / "debug.log"
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "main.py:93", "message": "file_approved_notes returned", "data": {"filed_count": filed_count}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-    except: pass
-    # #endregion
     
     # 3. Phase 2: Scan Capture Directory
     files_to_process = list(CAPTURE_DIR.glob("*.md"))
