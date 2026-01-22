@@ -1,5 +1,9 @@
 import os
+import json
+import uuid
 import google.generativeai as genai
+from datetime import datetime
+from pathlib import Path
 from google.generativeai.types import GenerationConfig
 
 ARCHITECT_SYSTEM_PROMPT = """
@@ -37,12 +41,13 @@ RULES:
 
 
 class LLMClient:
-    def __init__(self, model_name="gemini-2.5-flash", system_instruction=None):
+    def __init__(self, vault_root: str, model_name="gemini-2.5-flash", system_instruction=None):
         """
         Initialise the Gemini Client.
         Expects GEMINI_API_KEY to be set in environment variables.
         
         Args:
+            vault_root: Path to the root of the Obsidian vault (required for logging)
             model_name: Name of the Gemini model to use (default: "gemini-2.5-flash")
             system_instruction: Optional system instruction to pass to the model (default: None)
         """
@@ -51,6 +56,10 @@ class LLMClient:
             raise ValueError("❌ Error: GEMINI_API_KEY environment variable not set.")
 
         genai.configure(api_key=api_key)
+        
+        self.vault_root = Path(vault_root)
+        self.log_dir = self.vault_root / "99. System/Logs/Librarian"
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Pass system instruction to model if provided
         if system_instruction:
@@ -93,6 +102,47 @@ class LLMClient:
         except Exception as e:
             print(f"🔥 API Error: {str(e)}")
             raise e
+
+    def _log_interaction(self, instructions: str, body: str, context: str, skeleton: str, response_text: str, model_name: str):
+        """
+        Archives the interaction for evaluation.
+        
+        Args:
+            instructions: User instructions
+            body: Raw note content
+            context: Full vault context
+            skeleton: Vault skeleton map
+            response_text: LLM response
+            model_name: Model used for generation
+        """
+        try:
+            timestamp = datetime.now()
+            log_id = str(uuid.uuid4())[:8]
+            filename = f"{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}-{log_id}.json"
+            
+            log_entry = {
+                "meta": {
+                    "timestamp": timestamp.isoformat(),
+                    "id": log_id,
+                    "model": model_name
+                },
+                "input": {
+                    "instructions": instructions,
+                    "body": body,
+                    "context": context,
+                    "skeleton": skeleton
+                },
+                "output": response_text
+            }
+            
+            log_path = self.log_dir / filename
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(log_entry, f, indent=2, ensure_ascii=False)
+            
+            print(f"📝 Logged interaction to {filename}")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to log interaction: {e}")
 
     def generate_proposal(self, instructions: str, body: str, context: str, skeleton: str, model_name="gemini-2.5-flash") -> str:
         """
@@ -138,6 +188,9 @@ Please generate a multi-file proposal following the output format.
                 user_prompt,
                 generation_config=config
             )
+            
+            # Log the interaction
+            self._log_interaction(instructions, body, context, skeleton, response.text, model_name)
             
             return response.text
             

@@ -55,7 +55,7 @@ class NoteProcessor:
         Args:
             vault_root: Path to the root of the Obsidian vault
         """
-        self.llm = LLMClient(system_instruction=SYSTEM_PROMPT)
+        self.llm = LLMClient(vault_root=vault_root, system_instruction=SYSTEM_PROMPT)
         self.loader = ContextLoader(vault_root)
         self.parser = ResponseParser()
     

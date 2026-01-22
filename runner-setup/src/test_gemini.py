@@ -7,7 +7,7 @@ def main():
     
     try:
         # 1. Initialize
-        client = LLMClient()
+        client = LLMClient(vault_root=os.getcwd())
         
         # 2. Define a simple prompt
         prompt = "Explain in one sentence why Obsidian is a good note-taking app."
