@@ -68,6 +68,10 @@ class NoteFiler:
                     continue
 
                 # 3. Write Files
+                # Check if this is a maintenance fix proposal (has target-file metadata)
+                is_maintenance_fix = "target-file" in post.metadata
+                original_target_file = post.metadata.get("target-file")
+                
                 files_created_this_proposal = 0
                 for file_data in parsed["files"]:
                     rel_path = file_data["path"]
@@ -84,14 +88,34 @@ class NoteFiler:
                     # Create parent directories
                     full_target_path.parent.mkdir(parents=True, exist_ok=True)
                     
-                    # Handle collisions
-                    safe_target = get_safe_path(full_target_path)
+                    # For maintenance fixes: delete original file and write directly to target
+                    # For regular proposals: use safe_path to avoid overwriting
+                    if is_maintenance_fix:
+                        # Delete the original file if it exists and is different from target
+                        if original_target_file:
+                            original_full_path = self.vault_root / original_target_file
+                            if original_full_path.exists() and original_full_path != full_target_path:
+                                original_full_path.unlink()
+                                print(f"🗑️ Deleted original: {original_target_file}")
+                        
+                        # Also delete target if it exists (same file being fixed)
+                        if full_target_path.exists():
+                            full_target_path.unlink()
+                            print(f"🗑️ Deleted existing target: {rel_path}")
+                        
+                        # Write directly to target path (no collision handling for maintenance fixes)
+                        safe_target = full_target_path
+                        action = "Updated"
+                    else:
+                        # Regular proposal: use safe_path to avoid overwriting
+                        safe_target = get_safe_path(full_target_path)
+                        action = "Created"
                     
                     # Write file
                     with open(safe_target, "w", encoding="utf-8") as f:
                         f.write(content)
                     
-                    print(f"✅ Created: {safe_target.relative_to(self.vault_root)}")
+                    print(f"✅ {action}: {safe_target.relative_to(self.vault_root)}")
                     files_created_this_proposal += 1
                     files_created_total += 1
 
