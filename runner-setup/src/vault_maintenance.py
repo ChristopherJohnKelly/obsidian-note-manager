@@ -100,6 +100,10 @@ def main():
     
     print(f"📁 Vault root: {vault_root_path}")
     
+    # Create log directory for cron output
+    log_dir = vault_root_path / "99. System/Logs/Maintenance"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
     # Initialize components
     context_loader = ContextLoader(vault_root)
     scanner = VaultScanner(vault_root, context_loader)
