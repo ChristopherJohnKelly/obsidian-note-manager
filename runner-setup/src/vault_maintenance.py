@@ -25,7 +25,6 @@ except ImportError:
     from context_loader import ContextLoader
     from llm_client import LLMClient
     from fixer import MaintenanceFixer
-<<<<<<< HEAD
 
 
 def check_conflict(file_path: Path) -> bool:
@@ -54,8 +53,6 @@ def check_conflict(file_path: Path) -> bool:
         return False
     
     return False
-=======
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
 
 
 def print_results(candidates: list):
@@ -103,6 +100,10 @@ def main():
     
     print(f"📁 Vault root: {vault_root_path}")
     
+    # Create log directory for cron output
+    log_dir = vault_root_path / "99. System/Logs/Maintenance"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
     # Initialize components
     context_loader = ContextLoader(vault_root)
     scanner = VaultScanner(vault_root, context_loader)
@@ -124,7 +125,6 @@ def main():
     # Limit to top 20
     top_candidates = filtered_candidates[:20]
     
-<<<<<<< HEAD
     # Filter out files with recent modifications (conflict detection)
     clean_candidates = []
     for candidate in top_candidates:
@@ -140,14 +140,6 @@ def main():
     
     # Print results summary
     print_results(clean_candidates)
-=======
-    if not top_candidates:
-        print("✅ No maintenance candidates found. Vault is clean!")
-        return
-    
-    # Print results summary
-    print_results(top_candidates)
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
     
     # Generate fix proposals
     try:
@@ -158,26 +150,16 @@ def main():
         # Initialize Maintenance Fixer
         fixer = MaintenanceFixer(vault_root, llm_client, context_loader)
         
-<<<<<<< HEAD
         # Generate proposals for clean candidates
         print(f"\n🔧 Generating fix proposals for {len(clean_candidates)} candidates...")
         processed_files = fixer.generate_fixes(clean_candidates)
-=======
-        # Generate proposals for top candidates
-        print(f"\n🔧 Generating fix proposals for {len(top_candidates)} candidates...")
-        processed_files = fixer.generate_fixes(top_candidates)
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
         
         print(f"\n✅ Generated {len(processed_files)} proposals")
         
         # Record scan in history only for successfully processed files
         for rel_path in processed_files:
             # Find the score for this path
-<<<<<<< HEAD
             candidate = next((c for c in clean_candidates if c["path"] == rel_path), None)
-=======
-            candidate = next((c for c in top_candidates if c["path"] == rel_path), None)
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
             if candidate:
                 state_manager.record_scan(rel_path, candidate["score"])
         
@@ -192,11 +174,7 @@ def main():
         print(f"\n❌ Error: {e}")
         print("⚠️ Skipping proposal generation. Set GEMINI_API_KEY environment variable to enable fix proposals.")
         # Still record the scan even if proposals weren't generated
-<<<<<<< HEAD
         for candidate in clean_candidates:
-=======
-        for candidate in top_candidates:
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
             state_manager.record_scan(candidate["path"], candidate["score"])
         state_manager.save_history()
     except Exception as e:
@@ -204,11 +182,7 @@ def main():
         import traceback
         traceback.print_exc()
         # Still record the scan even if proposals failed
-<<<<<<< HEAD
         for candidate in clean_candidates:
-=======
-        for candidate in top_candidates:
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
             state_manager.record_scan(candidate["path"], candidate["score"])
         state_manager.save_history()
 
