@@ -14,12 +14,16 @@ try:
     from .scanner import VaultScanner
     from .state_manager import StateManager
     from .context_loader import ContextLoader
+    from .llm_client import LLMClient
+    from .fixer import MaintenanceFixer
 except ImportError:
     # Fallback for when run as script
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from scanner import VaultScanner
     from state_manager import StateManager
     from context_loader import ContextLoader
+    from llm_client import LLMClient
+    from fixer import MaintenanceFixer
 
 
 def print_results(candidates: list):
@@ -88,17 +92,57 @@ def main():
     # Limit to top 20
     top_candidates = filtered_candidates[:20]
     
-    # Print results
+    if not top_candidates:
+        print("✅ No maintenance candidates found. Vault is clean!")
+        return
+    
+    # Print results summary
     print_results(top_candidates)
     
-    # Record scan in history
-    for candidate in top_candidates:
-        state_manager.record_scan(candidate["path"], candidate["score"])
-    
-    # Save history
-    state_manager.save_history()
-    
-    print(f"\n✅ Scan complete. History saved to {state_manager.history_file.relative_to(vault_root_path)}")
+    # Generate fix proposals
+    try:
+        # Initialize LLM Client
+        print("\n🤖 Initializing LLM Client...")
+        llm_client = LLMClient(vault_root=vault_root)
+        
+        # Initialize Maintenance Fixer
+        fixer = MaintenanceFixer(vault_root, llm_client, context_loader)
+        
+        # Generate proposals for top candidates
+        print(f"\n🔧 Generating fix proposals for {len(top_candidates)} candidates...")
+        processed_files = fixer.generate_fixes(top_candidates)
+        
+        print(f"\n✅ Generated {len(processed_files)} proposals")
+        
+        # Record scan in history only for successfully processed files
+        for rel_path in processed_files:
+            # Find the score for this path
+            candidate = next((c for c in top_candidates if c["path"] == rel_path), None)
+            if candidate:
+                state_manager.record_scan(rel_path, candidate["score"])
+        
+        # Save history
+        state_manager.save_history()
+        
+        print(f"✅ Scan complete. History saved to {state_manager.history_file.relative_to(vault_root_path)}")
+        print(f"📝 Proposals written to: {fixer.review_dir.relative_to(vault_root_path)}")
+        
+    except ValueError as e:
+        # LLM API key not set
+        print(f"\n❌ Error: {e}")
+        print("⚠️ Skipping proposal generation. Set GEMINI_API_KEY environment variable to enable fix proposals.")
+        # Still record the scan even if proposals weren't generated
+        for candidate in top_candidates:
+            state_manager.record_scan(candidate["path"], candidate["score"])
+        state_manager.save_history()
+    except Exception as e:
+        print(f"\n❌ Error during proposal generation: {e}")
+        import traceback
+        traceback.print_exc()
+        # Still record the scan even if proposals failed
+        for candidate in top_candidates:
+            state_manager.record_scan(candidate["path"], candidate["score"])
+        state_manager.save_history()
 
 
 if __name__ == "__main__":
