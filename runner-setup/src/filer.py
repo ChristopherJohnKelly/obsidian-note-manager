@@ -69,8 +69,12 @@ class NoteFiler:
 
                 # 3. Write Files
                 # Check if this is a maintenance fix proposal (has target-file metadata)
-                is_maintenance_fix = "target-file" in post.metadata
-                original_target_file = post.metadata.get("target-file")
+                # Maintenance fixes should update existing files, not create new ones
+                is_maintenance_fix = "target-file" in post.metadata and post.metadata.get("target-file") is not None
+                original_target_file = post.metadata.get("target-file") if is_maintenance_fix else None
+                
+                if is_maintenance_fix:
+                    print(f"🔧 Maintenance fix detected for: {original_target_file}")
                 
                 files_created_this_proposal = 0
                 for file_data in parsed["files"]:
@@ -88,22 +92,26 @@ class NoteFiler:
                     # Create parent directories
                     full_target_path.parent.mkdir(parents=True, exist_ok=True)
                     
-                    # For maintenance fixes: delete original file and write directly to target
+                    # For maintenance fixes: always update the target file (delete if exists, then write)
                     # For regular proposals: use safe_path to avoid overwriting
                     if is_maintenance_fix:
-                        # Delete the original file if it exists and is different from target
-                        if original_target_file:
+                        # For maintenance fixes, we want to UPDATE the file, not create a new one
+                        # First, delete the original file if it's different from the target
+                        # This handles the case where the LLM renames the file
+                        if original_target_file and original_target_file != rel_path:
                             original_full_path = self.vault_root / original_target_file
-                            if original_full_path.exists() and original_full_path != full_target_path:
+                            if original_full_path.exists():
                                 original_full_path.unlink()
-                                print(f"🗑️ Deleted original: {original_target_file}")
+                                print(f"🗑️ Deleted original (renamed): {original_target_file}")
                         
-                        # Also delete target if it exists (same file being fixed)
+                        # Delete the target path if it exists (handles both same path and renamed files)
+                        # This ensures we can write to the target without collision
                         if full_target_path.exists():
                             full_target_path.unlink()
                             print(f"🗑️ Deleted existing target: {rel_path}")
                         
                         # Write directly to target path (no collision handling for maintenance fixes)
+                        # This ensures we UPDATE the file, not create Note-1.md, Note-2.md, etc.
                         safe_target = full_target_path
                         action = "Updated"
                     else:
