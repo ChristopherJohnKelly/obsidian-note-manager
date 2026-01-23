@@ -5,9 +5,11 @@ from pathlib import Path
 # Handle both relative and absolute imports
 try:
     from .context_loader import ContextLoader
+    from .vault_utils import get_safe_path
 except ImportError:
     # Fallback for when run as script
     from context_loader import ContextLoader
+    from vault_utils import get_safe_path
 
 
 class MaintenanceFixer:
@@ -25,32 +27,6 @@ class MaintenanceFixer:
         self.review_dir = self.vault_root / review_dir
         self.llm_client = llm_client
         self.context_loader = context_loader
-
-    def _get_safe_path(self, target_path: Path) -> Path:
-        """
-        Returns a path that doesn't exist, appending -N if needed.
-        
-        Args:
-            target_path: Desired file path
-            
-        Returns:
-            Path: Safe path that doesn't exist
-        """
-        if not target_path.exists():
-            return target_path
-        
-        # Collision handling: append -1, -2, etc.
-        counter = 1
-        stem = target_path.stem
-        suffix = target_path.suffix
-        parent = target_path.parent
-        
-        while True:
-            new_name = f"{stem}-{counter}{suffix}"
-            candidate = parent / new_name
-            if not candidate.exists():
-                return candidate
-            counter += 1
 
     def generate_fixes(self, candidates: list) -> list:
         """
@@ -126,7 +102,7 @@ class MaintenanceFixer:
                 proposal_path = self.review_dir / proposal_filename
 
                 # Handle filename collisions (e.g., same filename in different directories)
-                proposal_path = self._get_safe_path(proposal_path)
+                proposal_path = get_safe_path(proposal_path)
 
                 # Construct proposal content with frontmatter and body sections
                 proposal_content = f"""%%INSTRUCTIONS%%
