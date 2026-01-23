@@ -6,8 +6,10 @@ from pathlib import Path
 # Handle both relative and absolute imports
 try:
     from .response_parser import ResponseParser
+    from .vault_utils import get_safe_path
 except ImportError:
     from response_parser import ResponseParser
+    from vault_utils import get_safe_path
 
 
 class NoteFiler:
@@ -21,32 +23,6 @@ class NoteFiler:
         self.vault_root = Path(vault_root)
         self.review_dir = self.vault_root / "00. Inbox/1. Review Queue"
         self.parser = ResponseParser()
-
-    def _get_safe_path(self, target_path: Path) -> Path:
-        """
-        Returns a path that doesn't exist, appending -N if needed.
-        
-        Args:
-            target_path: Desired file path
-            
-        Returns:
-            Path: Safe path that doesn't exist
-        """
-        if not target_path.exists():
-            return target_path
-        
-        # Collision handling: append -1, -2, etc.
-        counter = 1
-        stem = target_path.stem
-        suffix = target_path.suffix
-        parent = target_path.parent
-        
-        while True:
-            new_name = f"{stem}-{counter}{suffix}"
-            candidate = parent / new_name
-            if not candidate.exists():
-                return candidate
-            counter += 1
 
     def file_approved_notes(self) -> int:
         """
@@ -109,7 +85,7 @@ class NoteFiler:
                     full_target_path.parent.mkdir(parents=True, exist_ok=True)
                     
                     # Handle collisions
-                    safe_target = self._get_safe_path(full_target_path)
+                    safe_target = get_safe_path(full_target_path)
                     
                     # Write file
                     with open(safe_target, "w", encoding="utf-8") as f:
