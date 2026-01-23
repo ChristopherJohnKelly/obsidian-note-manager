@@ -24,6 +24,32 @@ class MaintenanceFixer:
         self.llm_client = llm_client
         self.context_loader = context_loader
 
+    def _get_safe_path(self, target_path: Path) -> Path:
+        """
+        Returns a path that doesn't exist, appending -N if needed.
+        
+        Args:
+            target_path: Desired file path
+            
+        Returns:
+            Path: Safe path that doesn't exist
+        """
+        if not target_path.exists():
+            return target_path
+        
+        # Collision handling: append -1, -2, etc.
+        counter = 1
+        stem = target_path.stem
+        suffix = target_path.suffix
+        parent = target_path.parent
+        
+        while True:
+            new_name = f"{stem}-{counter}{suffix}"
+            candidate = parent / new_name
+            if not candidate.exists():
+                return candidate
+            counter += 1
+
     def generate_fixes(self, candidates: list) -> list:
         """
         Generates proposals for the given candidates.
@@ -40,9 +66,10 @@ class MaintenanceFixer:
         self.review_dir.mkdir(parents=True, exist_ok=True)
         
         # Get context once for all candidates (more efficient)
+        # Note: skeleton is already included in full_context, so we don't need to call build_skeleton() again
         try:
             full_context = self.context_loader.get_full_context()
-            skeleton = self.context_loader.indexer.build_skeleton()
+            skeleton = ""  # Only used for logging; skeleton is already in full_context
         except Exception as e:
             print(f"⚠️ Warning: Failed to load full context, using minimal context: {e}")
             full_context = "[Maintenance Mode - Context loading failed]"
@@ -95,6 +122,9 @@ class MaintenanceFixer:
                 original_stem = full_path.stem
                 proposal_filename = f"Refactor - {original_stem}.md"
                 proposal_path = self.review_dir / proposal_filename
+                
+                # Handle filename collisions (e.g., same filename in different directories)
+                proposal_path = self._get_safe_path(proposal_path)
 
                 # Construct proposal content with frontmatter and body sections
                 proposal_content = f"""%%INSTRUCTIONS%%
@@ -124,7 +154,7 @@ class MaintenanceFixer:
                     f.write(proposal_text)
 
                 processed_files.append(rel_path)
-                print(f"✅ Generated: {proposal_filename}")
+                print(f"✅ Generated: {proposal_path.name}")
 
             except Exception as e:
                 print(f"❌ Failed to fix {item.get('path', 'unknown')}: {e}")
