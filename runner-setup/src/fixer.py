@@ -1,24 +1,13 @@
-<<<<<<< HEAD
 import os
-=======
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
 import frontmatter
 from pathlib import Path
 
 # Handle both relative and absolute imports
 try:
     from .context_loader import ContextLoader
-<<<<<<< HEAD
-    from .vault_utils import get_safe_path
 except ImportError:
     # Fallback for when run as script
     from context_loader import ContextLoader
-    from vault_utils import get_safe_path
-=======
-except ImportError:
-    # Fallback for when run as script
-    from context_loader import ContextLoader
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
 
 
 class MaintenanceFixer:
@@ -32,14 +21,36 @@ class MaintenanceFixer:
             context_loader: ContextLoader instance for getting vault context
         """
         self.vault_root = Path(vault_root)
-<<<<<<< HEAD
         review_dir = os.getenv("OBSIDIAN_REVIEW_DIR", "00. Inbox/1. Review Queue")
         self.review_dir = self.vault_root / review_dir
-=======
-        self.review_dir = self.vault_root / "00. Inbox/1. Review Queue"
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
         self.llm_client = llm_client
         self.context_loader = context_loader
+
+    def _get_safe_path(self, target_path: Path) -> Path:
+        """
+        Returns a path that doesn't exist, appending -N if needed.
+        
+        Args:
+            target_path: Desired file path
+            
+        Returns:
+            Path: Safe path that doesn't exist
+        """
+        if not target_path.exists():
+            return target_path
+        
+        # Collision handling: append -1, -2, etc.
+        counter = 1
+        stem = target_path.stem
+        suffix = target_path.suffix
+        parent = target_path.parent
+        
+        while True:
+            new_name = f"{stem}-{counter}{suffix}"
+            candidate = parent / new_name
+            if not candidate.exists():
+                return candidate
+            counter += 1
 
     def generate_fixes(self, candidates: list) -> list:
         """
@@ -57,16 +68,9 @@ class MaintenanceFixer:
         self.review_dir.mkdir(parents=True, exist_ok=True)
         
         # Get context once for all candidates (more efficient)
-<<<<<<< HEAD
-        # Note: skeleton is already included in full_context, so we don't need to call build_skeleton() again
-        try:
-            full_context = self.context_loader.get_full_context()
-            skeleton = ""  # Only used for logging; skeleton is already in full_context
-=======
         try:
             full_context = self.context_loader.get_full_context()
             skeleton = self.context_loader.indexer.build_skeleton()
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
         except Exception as e:
             print(f"⚠️ Warning: Failed to load full context, using minimal context: {e}")
             full_context = "[Maintenance Mode - Context loading failed]"
@@ -119,12 +123,6 @@ class MaintenanceFixer:
                 original_stem = full_path.stem
                 proposal_filename = f"Refactor - {original_stem}.md"
                 proposal_path = self.review_dir / proposal_filename
-<<<<<<< HEAD
-                
-                # Handle filename collisions (e.g., same filename in different directories)
-                proposal_path = get_safe_path(proposal_path)
-=======
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
 
                 # Construct proposal content with frontmatter and body sections
                 proposal_content = f"""%%INSTRUCTIONS%%
@@ -154,11 +152,7 @@ class MaintenanceFixer:
                     f.write(proposal_text)
 
                 processed_files.append(rel_path)
-<<<<<<< HEAD
-                print(f"✅ Generated: {proposal_path.name}")
-=======
                 print(f"✅ Generated: {proposal_filename}")
->>>>>>> 4740136 (Implemented fixer.py to suggest fixes for the vault.)
 
             except Exception as e:
                 print(f"❌ Failed to fix {item.get('path', 'unknown')}: {e}")
