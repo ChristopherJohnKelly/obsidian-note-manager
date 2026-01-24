@@ -96,24 +96,26 @@ class NoteFiler:
                     # For regular proposals: use safe_path to avoid overwriting
                     if is_maintenance_fix:
                         # For maintenance fixes, we want to UPDATE the file, not create a new one
-                        # First, delete the original file if it's different from the target
-                        # This handles the case where the LLM renames the file
-                        if original_target_file and original_target_file != rel_path:
+                        is_rename = original_target_file and original_target_file != rel_path
+                        
+                        if is_rename:
+                            # File is being renamed: delete original, but protect any unrelated
+                            # file that might already exist at the new target path
                             original_full_path = self.vault_root / original_target_file
                             if original_full_path.exists():
                                 original_full_path.unlink()
                                 print(f"🗑️ Deleted original (renamed): {original_target_file}")
-                        
-                        # Delete the target path if it exists (handles both same path and renamed files)
-                        # This ensures we can write to the target without collision
-                        if full_target_path.exists():
-                            full_target_path.unlink()
-                            print(f"🗑️ Deleted existing target: {rel_path}")
-                        
-                        # Write directly to target path (no collision handling for maintenance fixes)
-                        # This ensures we UPDATE the file, not create Note-1.md, Note-2.md, etc.
-                        safe_target = full_target_path
-                        action = "Updated"
+                            
+                            # Use safe_path for the new location to avoid destroying
+                            # unrelated files that happen to have the same name
+                            safe_target = get_safe_path(full_target_path)
+                            if safe_target != full_target_path:
+                                print(f"⚠️ Target path collision, using: {safe_target.relative_to(self.vault_root)}")
+                            action = "Renamed"
+                        else:
+                            # In-place update: safe to overwrite the same file
+                            safe_target = full_target_path
+                            action = "Updated"
                     else:
                         # Regular proposal: use safe_path to avoid overwriting
                         safe_target = get_safe_path(full_target_path)
