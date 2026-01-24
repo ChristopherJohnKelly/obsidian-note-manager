@@ -77,6 +77,10 @@ class NoteFiler:
                     print(f"🔧 Maintenance fix detected for: {original_target_file}")
                 
                 files_created_this_proposal = 0
+                # Track if we've already handled the original file (for maintenance fixes)
+                # This prevents deletion of files we just wrote when processing secondary files
+                original_handled = False
+                
                 for file_data in parsed["files"]:
                     rel_path = file_data["path"]
                     content = file_data["content"]
@@ -98,13 +102,14 @@ class NoteFiler:
                         # For maintenance fixes, we want to UPDATE the file, not create a new one
                         is_rename = original_target_file and original_target_file != rel_path
                         
-                        if is_rename:
-                            # File is being renamed: delete original, but protect any unrelated
+                        if is_rename and not original_handled:
+                            # File is being renamed: delete original once, but protect any unrelated
                             # file that might already exist at the new target path
                             original_full_path = self.vault_root / original_target_file
                             if original_full_path.exists():
                                 original_full_path.unlink()
                                 print(f"🗑️ Deleted original (renamed): {original_target_file}")
+                            original_handled = True
                             
                             # Use safe_path for the new location to avoid destroying
                             # unrelated files that happen to have the same name
@@ -112,10 +117,16 @@ class NoteFiler:
                             if safe_target != full_target_path:
                                 print(f"⚠️ Target path collision, using: {safe_target.relative_to(self.vault_root)}")
                             action = "Renamed"
-                        else:
+                        elif not is_rename and not original_handled:
                             # In-place update: safe to overwrite the same file
                             safe_target = full_target_path
                             action = "Updated"
+                            original_handled = True
+                        else:
+                            # Secondary files in maintenance fix - treat like regular proposals
+                            # to avoid accidentally deleting files we just created
+                            safe_target = get_safe_path(full_target_path)
+                            action = "Created"
                     else:
                         # Regular proposal: use safe_path to avoid overwriting
                         safe_target = get_safe_path(full_target_path)
