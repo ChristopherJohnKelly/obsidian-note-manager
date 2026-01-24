@@ -6,8 +6,10 @@ from pathlib import Path
 # Handle both relative and absolute imports
 try:
     from .response_parser import ResponseParser
+    from .vault_utils import get_safe_path
 except ImportError:
     from response_parser import ResponseParser
+    from vault_utils import get_safe_path
 
 
 class NoteFiler:
@@ -21,32 +23,6 @@ class NoteFiler:
         self.vault_root = Path(vault_root)
         self.review_dir = self.vault_root / "00. Inbox/1. Review Queue"
         self.parser = ResponseParser()
-
-    def _get_safe_path(self, target_path: Path) -> Path:
-        """
-        Returns a path that doesn't exist, appending -N if needed.
-        
-        Args:
-            target_path: Desired file path
-            
-        Returns:
-            Path: Safe path that doesn't exist
-        """
-        if not target_path.exists():
-            return target_path
-        
-        # Collision handling: append -1, -2, etc.
-        counter = 1
-        stem = target_path.stem
-        suffix = target_path.suffix
-        parent = target_path.parent
-        
-        while True:
-            new_name = f"{stem}-{counter}{suffix}"
-            candidate = parent / new_name
-            if not candidate.exists():
-                return candidate
-            counter += 1
 
     def file_approved_notes(self) -> int:
         """
@@ -92,7 +68,19 @@ class NoteFiler:
                     continue
 
                 # 3. Write Files
+                # Check if this is a maintenance fix proposal (has target-file metadata)
+                # Maintenance fixes should update existing files, not create new ones
+                is_maintenance_fix = "target-file" in post.metadata and post.metadata.get("target-file") is not None
+                original_target_file = post.metadata.get("target-file") if is_maintenance_fix else None
+                
+                if is_maintenance_fix:
+                    print(f"🔧 Maintenance fix detected for: {original_target_file}")
+                
                 files_created_this_proposal = 0
+                # Track if we've already handled the original file (for maintenance fixes)
+                # This prevents deletion of files we just wrote when processing secondary files
+                original_handled = False
+                
                 for file_data in parsed["files"]:
                     rel_path = file_data["path"]
                     content = file_data["content"]
@@ -108,14 +96,47 @@ class NoteFiler:
                     # Create parent directories
                     full_target_path.parent.mkdir(parents=True, exist_ok=True)
                     
-                    # Handle collisions
-                    safe_target = self._get_safe_path(full_target_path)
+                    # For maintenance fixes: always update the target file (delete if exists, then write)
+                    # For regular proposals: use safe_path to avoid overwriting
+                    if is_maintenance_fix:
+                        # For maintenance fixes, we want to UPDATE the file, not create a new one
+                        is_rename = original_target_file and original_target_file != rel_path
+                        
+                        if is_rename and not original_handled:
+                            # File is being renamed: delete original once, but protect any unrelated
+                            # file that might already exist at the new target path
+                            original_full_path = self.vault_root / original_target_file
+                            if original_full_path.exists():
+                                original_full_path.unlink()
+                                print(f"🗑️ Deleted original (renamed): {original_target_file}")
+                            original_handled = True
+                            
+                            # Use safe_path for the new location to avoid destroying
+                            # unrelated files that happen to have the same name
+                            safe_target = get_safe_path(full_target_path)
+                            if safe_target != full_target_path:
+                                print(f"⚠️ Target path collision, using: {safe_target.relative_to(self.vault_root)}")
+                            action = "Renamed"
+                        elif not is_rename and not original_handled:
+                            # In-place update: safe to overwrite the same file
+                            safe_target = full_target_path
+                            action = "Updated"
+                            original_handled = True
+                        else:
+                            # Secondary files in maintenance fix - treat like regular proposals
+                            # to avoid accidentally deleting files we just created
+                            safe_target = get_safe_path(full_target_path)
+                            action = "Created"
+                    else:
+                        # Regular proposal: use safe_path to avoid overwriting
+                        safe_target = get_safe_path(full_target_path)
+                        action = "Created"
                     
                     # Write file
                     with open(safe_target, "w", encoding="utf-8") as f:
                         f.write(content)
                     
-                    print(f"✅ Created: {safe_target.relative_to(self.vault_root)}")
+                    print(f"✅ {action}: {safe_target.relative_to(self.vault_root)}")
                     files_created_this_proposal += 1
                     files_created_total += 1
 
