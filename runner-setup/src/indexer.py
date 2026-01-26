@@ -1,3 +1,4 @@
+import os
 import frontmatter
 from pathlib import Path
 
@@ -18,10 +19,13 @@ class VaultIndexer:
             vault_root: Path to the root of the Obsidian vault
         """
         self.vault_root = Path(vault_root)
+        area_folder = os.getenv("OBSIDIAN_AREAS_FOLDER", "30. Areas")
+        projects_folder = os.getenv("OBSIDIAN_PROJECTS_FOLDER", "20. Projects")
+        resources_folder = os.getenv("OBSIDIAN_RESOURCES_FOLDER", "40. Resources")
         self.scan_dirs = [
-            "30. Areas",
-            "20. Projects",
-            "40. Resources"
+            area_folder,
+            projects_folder,
+            resources_folder
         ]
 
     def _normalize_aliases(self, aliases) -> list:

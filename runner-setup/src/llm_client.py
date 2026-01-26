@@ -58,7 +58,8 @@ class LLMClient:
         genai.configure(api_key=api_key)
         
         self.vault_root = Path(vault_root)
-        self.log_dir = self.vault_root / "99. System/Logs/Librarian"
+        log_dir = os.getenv("OBSIDIAN_LOG_DIR", "99. System/Logs/Librarian")
+        self.log_dir = self.vault_root / log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Pass system instruction to model if provided

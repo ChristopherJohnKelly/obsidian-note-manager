@@ -21,7 +21,8 @@ class NoteFiler:
             vault_root: Path to the root of the Obsidian vault
         """
         self.vault_root = Path(vault_root)
-        self.review_dir = self.vault_root / "00. Inbox/1. Review Queue"
+        review_dir = os.getenv("OBSIDIAN_REVIEW_DIR", "00. Inbox/1. Review Queue")
+        self.review_dir = self.vault_root / review_dir
         self.parser = ResponseParser()
 
     def file_approved_notes(self) -> int:

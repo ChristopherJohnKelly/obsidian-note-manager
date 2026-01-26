@@ -51,9 +51,11 @@ class ContextLoader:
             list: List of dicts with keys: code, name, type, folder
         """
         results = []
+        area_folder = os.getenv("OBSIDIAN_AREAS_FOLDER", "30. Areas")
+        projects_folder = os.getenv("OBSIDIAN_PROJECTS_FOLDER", "20. Projects")
         scan_paths = [
-            self.vault_root / "30. Areas",
-            self.vault_root / "20. Projects"
+            self.vault_root / area_folder,
+            self.vault_root / projects_folder
         ]
         
         for root_path in scan_paths:
@@ -122,12 +124,15 @@ class ContextLoader:
             str: Combined context from System Instructions, Tag Glossary, Code Registry, and Vault Map
         """
         # 1. System Instructions (The Rules)
-        instructions = self.read_file(
+        system_instructions = os.getenv(
+            "OBSIDIAN_SYSTEM_INSTRUCTIONS",
             "30. Areas/4. Personal Management/Obsidian/Obsidian System Instructions.md"
         )
+        instructions = self.read_file(system_instructions)
         
         # 2. Tag Glossary (The Taxonomy)
-        glossary = self.read_file("00. Inbox/00. Tag Glossary.md")
+        tag_glossary = os.getenv("OBSIDIAN_TAG_GLOSSARY", "00. Inbox/00. Tag Glossary.md")
+        glossary = self.read_file(tag_glossary)
         
         # 3. Code Registry (The Project Codes)
         # Dynamically scanned from Areas and Projects directories

@@ -1,3 +1,4 @@
+import os
 import frontmatter
 from pathlib import Path
 
@@ -22,7 +23,8 @@ class MaintenanceFixer:
             context_loader: ContextLoader instance for getting vault context
         """
         self.vault_root = Path(vault_root)
-        self.review_dir = self.vault_root / "00. Inbox/1. Review Queue"
+        review_dir = os.getenv("OBSIDIAN_REVIEW_DIR", "00. Inbox/1. Review Queue")
+        self.review_dir = self.vault_root / review_dir
         self.llm_client = llm_client
         self.context_loader = context_loader
 
