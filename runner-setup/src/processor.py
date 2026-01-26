@@ -41,7 +41,7 @@ title: "PEPS-P4 - PRD Draft"
 folder: "20. Projects/Pepsi Scaling Phase"
 type: "product-idea"
 status: "draft"
-tags: [ "type/product-idea", "client/pepsi" ]
+tags: [ "tech/ai" ]
 code: "PEPS-P4"
 ```
 """

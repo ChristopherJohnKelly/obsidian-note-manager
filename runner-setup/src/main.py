@@ -18,8 +18,8 @@ except ImportError:
 
 # Configuration - use environment variable or default to current directory
 VAULT_ROOT = os.getenv("OBSIDIAN_VAULT_ROOT", os.getcwd())
-CAPTURE_DIR = Path(VAULT_ROOT) / "00. Inbox/0. Capture"
-REVIEW_DIR = Path(VAULT_ROOT) / "00. Inbox/1. Review Queue"
+CAPTURE_DIR = Path(VAULT_ROOT) / os.getenv("OBSIDIAN_CAPTURE_DIR", "00. Inbox/0. Capture")
+REVIEW_DIR = Path(VAULT_ROOT) / os.getenv("OBSIDIAN_REVIEW_DIR", "00. Inbox/1. Review Queue")
 
 
 def clean_markdown(content: str) -> str:

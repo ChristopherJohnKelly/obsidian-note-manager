@@ -1,3 +1,4 @@
+import os
 import frontmatter
 from pathlib import Path
 
@@ -92,9 +93,11 @@ class VaultScanner:
             list: List of candidate dicts with "path", "score", and "reasons" keys
         """
         candidates = []
+        projects_folder = os.getenv("OBSIDIAN_PROJECTS_FOLDER", "20. Projects")
+        areas_folder = os.getenv("OBSIDIAN_AREAS_FOLDER", "30. Areas")
         dirs_to_scan = [
-            self.vault_root / "20. Projects",
-            self.vault_root / "30. Areas"
+            self.vault_root / projects_folder,
+            self.vault_root / areas_folder
         ]
         
         for root_dir in dirs_to_scan:

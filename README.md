@@ -1,15 +1,26 @@
 # Obsidian Note Automation
 
-An automated "Librarian" agent for Obsidian notes that processes raw notes using Google Gemini AI, adds metadata, tags, and moves them to a review queue.
+An automated "Librarian" system for Obsidian notes that processes raw notes using Google Gemini AI, adds metadata, tags, and manages vault organization through two complementary pipelines.
 
 ## Overview
 
-This system automates the organization of Obsidian notes by:
+This system automates Obsidian vault organization through two pipelines:
 
-1. **Detecting** new notes in the `00. Inbox/0. Capture` folder
-2. **Processing** them with Google Gemini AI to extract metadata (title, tags, type, folder)
-3. **Moving** processed notes to `00. Inbox/1. Review Queue` with `status: review`
-4. **Committing** changes back to the repository
+### 1. Ingestion Pipeline (The Librarian)
+Processes new notes dropped into the Capture folder:
+1. **Detect** new notes in `00. Inbox/0. Capture/`
+2. **Process** them with Google Gemini AI to extract metadata and suggest organization
+3. **Generate** proposals in `00. Inbox/1. Review Queue/` for human review
+4. **File** approved proposals (when user sets `librarian: file`)
+5. **Commit** changes back to the repository
+
+### 2. Maintenance Pipeline (The Night Watchman)
+Scans existing vault notes for quality issues:
+1. **Scan** `20. Projects/` and `30. Areas/` for quality deficits
+2. **Score** notes based on missing metadata, naming violations, generic titles
+3. **Filter** by cooldown period and recent modifications (conflict detection)
+4. **Generate** fix proposals with AI-suggested corrections
+5. **Record** scan history to prevent duplicate processing
 
 The system runs on a **Raspberry Pi** using a **GitHub Actions self-hosted runner** in a Docker container.
 
@@ -26,9 +37,9 @@ See the [Setup Guide](docs/setup.md) for detailed instructions.
 
 The system consists of:
 
-- **GitHub Actions Workflow**: Triggers when notes are pushed to the Capture folder
+- **GitHub Actions Workflows**: Trigger on note pushes (ingestion) and scheduled runs (maintenance)
 - **Self-Hosted Runner**: Docker container on Raspberry Pi that executes jobs
-- **Python Application**: Processes notes using Gemini AI
+- **Python Application**: Dual-pipeline processing using Gemini AI
 - **Git Operations**: Commits and pushes processed notes back to the repository
 
 For more details, see the [Architecture Overview](docs/architecture.md).
@@ -44,6 +55,7 @@ For more details, see the [Architecture Overview](docs/architecture.md).
 
 - **[Component Documentation](docs/components.md)** - Detailed component breakdown
 - **[API Reference](docs/api-reference.md)** - Technical API documentation
+- **[Code Registry](docs/code-registry.md)** - File, class, and method relationships
 - **[Workflow Documentation](docs/workflows.md)** - GitHub Actions workflow details
 
 ### Troubleshooting
@@ -54,28 +66,38 @@ For more details, see the [Architecture Overview](docs/architecture.md).
 
 ```
 obsidian-note-manager/
-├── docs/                    # Comprehensive documentation
-│   ├── architecture.md      # System architecture
-│   ├── setup.md             # Installation guide
-│   ├── components.md        # Component details
-│   ├── api-reference.md     # API documentation
-│   ├── troubleshooting.md   # Troubleshooting guide
-│   └── workflows.md         # Workflow documentation
-├── runner-setup/            # Docker setup for self-hosted runner
-│   ├── Dockerfile           # Container image definition
-│   ├── docker-compose.yml   # Container orchestration
-│   ├── entrypoint.sh        # Startup script
-│   ├── src/                 # Python application code
-│   │   ├── main.py          # Orchestrator
-│   │   ├── processor.py     # AI processing logic
-│   │   ├── context_loader.py # Context loading
-│   │   ├── llm_client.py    # Gemini API client
-│   │   ├── yaml_parser.py   # Frontmatter parsing
-│   │   └── git_ops.py       # Git operations
-│   └── README.md            # Quick start guide
+├── docs/                      # Comprehensive documentation
+│   ├── architecture.md        # System architecture
+│   ├── setup.md               # Installation guide
+│   ├── components.md          # Component details
+│   ├── api-reference.md       # API documentation
+│   ├── code-registry.md       # Code relationships
+│   ├── troubleshooting.md     # Troubleshooting guide
+│   └── workflows.md           # Workflow documentation
+├── runner-setup/              # Docker setup for self-hosted runner
+│   ├── Dockerfile             # Container image definition
+│   ├── docker-compose.yml     # Container orchestration
+│   ├── entrypoint.sh          # Startup script
+│   ├── src/                   # Python application code
+│   │   ├── main.py            # Ingestion pipeline orchestrator
+│   │   ├── vault_maintenance.py # Maintenance pipeline orchestrator
+│   │   ├── processor.py       # Note processing coordinator
+│   │   ├── filer.py           # Proposal execution (filing)
+│   │   ├── fixer.py           # Maintenance fix generation
+│   │   ├── scanner.py         # Vault quality scanner
+│   │   ├── state_manager.py   # Scan history and cooldowns
+│   │   ├── context_loader.py  # Vault context loading
+│   │   ├── indexer.py         # Vault skeleton builder
+│   │   ├── llm_client.py      # Gemini API client
+│   │   ├── response_parser.py # LLM response parsing
+│   │   ├── yaml_parser.py     # Frontmatter parsing
+│   │   ├── vault_utils.py     # Shared utilities
+│   │   └── git_ops.py         # Git operations
+│   └── README.md              # Quick start guide
 └── .github/
     └── workflows/
-        └── ingest.yml       # GitHub Actions workflow template
+        ├── ingest.yml         # Ingestion workflow
+        └── test-runner.yml    # Test workflow
 ```
 
 ## Requirements
@@ -96,16 +118,28 @@ obsidian-note-manager/
 
 - Classic Personal Access Token (PAT) with `repo` scope
 - `GEMINI_API_KEY` secret in repository settings
-- `.github/workflows/ingest.yml` workflow file in obsidian-notes repository
+- Workflow files in obsidian-notes repository
 
 ## Usage
 
-### Automatic Processing
+### Automatic Processing (Ingestion)
 
 1. **Add note**: Create/edit a note in `00. Inbox/0. Capture/` via Obsidian
 2. **Push to GitHub**: Commit and push the note
 3. **Wait for processing**: Workflow runs automatically (usually 30-60 seconds)
-4. **Review**: Check `00. Inbox/1. Review Queue/` for processed notes
+4. **Review**: Check `00. Inbox/1. Review Queue/` for processed proposals
+5. **Approve**: Set `librarian: file` in frontmatter to execute the proposal
+
+### Maintenance Scanning
+
+The maintenance pipeline can run:
+- **Scheduled**: Via GitHub Actions cron trigger
+- **Manually**: `python3 src/vault_maintenance.py`
+
+It will:
+1. Scan for quality issues (missing metadata, naming violations)
+2. Generate fix proposals in Review Queue
+3. Track scan history to prevent duplicate processing
 
 ### Manual Testing
 
@@ -115,6 +149,28 @@ docker compose exec librarian-runner python3 src/test_gemini.py
 
 # Process a single note manually
 docker compose exec librarian-runner python3 src/run_manual.py /path/to/note.md /vault/root
+
+# Run maintenance scan manually
+docker compose exec librarian-runner python3 src/vault_maintenance.py
+```
+
+## Workflow States
+
+Notes flow through these states:
+
+```
+[0. Capture] → [Processing] → [1. Review Queue] → [Filing] → [Final Location]
+     ↑                              ↓
+     └── User creates note    User reviews & sets
+                              librarian: file
+```
+
+Maintenance proposals follow:
+
+```
+[Vault Scan] → [Quality Issues] → [1. Review Queue] → [Filing] → [Updated Note]
+     ↑                                   ↓
+     └── Night Watchman           User reviews & approves
 ```
 
 ## Troubleshooting
@@ -133,6 +189,8 @@ For more troubleshooting help, see the [Troubleshooting Guide](docs/troubleshoot
 - **GitHub Secrets**: API keys stored in repository secrets
 - **Non-Root User**: Runner runs as non-root user in container
 - **Classic PAT Required**: Must use Classic PAT with `repo` scope (not fine-grained)
+- **Path Traversal Protection**: Filer validates paths to prevent escaping vault root
+- **Conflict Detection**: Maintenance skips files modified within the last hour
 
 ## Contributing
 

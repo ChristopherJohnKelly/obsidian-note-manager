@@ -1,3 +1,4 @@
+import os
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -12,7 +13,8 @@ class StateManager:
             vault_root: Path to the root of the Obsidian vault
         """
         self.vault_root = Path(vault_root)
-        self.history_file = self.vault_root / "99. System/maintenance_history.json"
+        history_file = os.getenv("OBSIDIAN_HISTORY_FILE", "99. System/maintenance_history.json")
+        self.history_file = self.vault_root / history_file
         self.history = self._load_history()
 
     def _load_history(self) -> dict:
