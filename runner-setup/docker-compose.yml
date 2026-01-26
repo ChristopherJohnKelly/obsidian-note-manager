@@ -15,6 +15,16 @@ services:
       GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"  # Legacy: kept for backward compatibility
       RUNNER_NAME: "pi-librarian"
       GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      OBSIDIAN_AREAS_FOLDER: "${OBSIDIAN_AREAS_FOLDER}"
+      OBSIDIAN_PROJECTS_FOLDER: "${OBSIDIAN_PROJECTS_FOLDER}"
+      OBSIDIAN_RESOURCES_FOLDER: "${OBSIDIAN_RESOURCES_FOLDER}"
+      OBSIDIAN_SYSTEM_DIR: "${OBSIDIAN_SYSTEM_DIR}"
+      OBSIDIAN_CAPTURE_DIR: "${OBSIDIAN_CAPTURE_DIR}"
+      OBSIDIAN_REVIEW_DIR: "${OBSIDIAN_REVIEW_DIR}"
+      OBSIDIAN_SYSTEM_INSTRUCTIONS: "${OBSIDIAN_SYSTEM_INSTRUCTIONS}"
+      OBSIDIAN_TAG_GLOSSARY: "${OBSIDIAN_TAG_GLOSSARY}"
+      OBSIDIAN_LOG_DIR: "${OBSIDIAN_LOG_DIR}"
+      OBSIDIAN_HISTORY_FILE: "${OBSIDIAN_HISTORY_FILE}"
     # Uncomment the following volume mount for development (allows code changes without rebuild)
     # volumes:
     #   - ./src:/home/runner/src
