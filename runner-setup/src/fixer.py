@@ -44,10 +44,9 @@ class MaintenanceFixer:
         self.review_dir.mkdir(parents=True, exist_ok=True)
         
         # Get context once for all candidates (more efficient)
-        # Note: skeleton is already included in full_context, so we don't need to call build_skeleton() again
         try:
             full_context = self.context_loader.get_full_context()
-            skeleton = ""  # Only used for logging; skeleton is already in full_context
+            skeleton = self.context_loader.indexer.build_skeleton()
         except Exception as e:
             print(f"⚠️ Warning: Failed to load full context, using minimal context: {e}")
             full_context = "[Maintenance Mode - Context loading failed]"
@@ -100,7 +99,7 @@ class MaintenanceFixer:
                 original_stem = full_path.stem
                 proposal_filename = f"Refactor - {original_stem}.md"
                 proposal_path = self.review_dir / proposal_filename
-                
+
                 # Handle filename collisions (e.g., same filename in different directories)
                 proposal_path = get_safe_path(proposal_path)
 
@@ -132,7 +131,7 @@ class MaintenanceFixer:
                     f.write(proposal_text)
 
                 processed_files.append(rel_path)
-                print(f"✅ Generated: {proposal_path.name}")
+                print(f"✅ Generated: {proposal_filename}")
 
             except Exception as e:
                 print(f"❌ Failed to fix {item.get('path', 'unknown')}: {e}")

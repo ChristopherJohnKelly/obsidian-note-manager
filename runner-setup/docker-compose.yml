@@ -25,6 +25,7 @@ services:
       OBSIDIAN_TAG_GLOSSARY: "${OBSIDIAN_TAG_GLOSSARY}"
       OBSIDIAN_LOG_DIR: "${OBSIDIAN_LOG_DIR}"
       OBSIDIAN_HISTORY_FILE: "${OBSIDIAN_HISTORY_FILE}"
+
     # Uncomment the following volume mount for development (allows code changes without rebuild)
     # volumes:
     #   - ./src:/home/runner/src
