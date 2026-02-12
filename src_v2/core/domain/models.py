@@ -42,3 +42,12 @@ class ValidationResult(BaseModel):
     path: Path
     score: int
     reasons: list[str] = Field(default_factory=list)
+
+
+class CodeRegistryEntry(BaseModel):
+    """A Code Registry entry from Areas/Projects (project or area with code)."""
+
+    code: str
+    name: str
+    type: str = ""
+    folder: str

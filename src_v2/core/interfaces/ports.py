@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from src_v2.core.domain.models import Note, ValidationResult
+from src_v2.core.domain.models import CodeRegistryEntry, Note, ValidationResult
 
 
 class VaultRepository(ABC):
@@ -22,6 +22,16 @@ class VaultRepository(ABC):
     @abstractmethod
     def scan_vault(self) -> list[ValidationResult]:
         """Scan the vault and return validation results for files with quality issues."""
+        ...
+
+    @abstractmethod
+    def get_code_registry_entries(self) -> list[CodeRegistryEntry]:
+        """Return code registry entries from Areas and Projects (files with code in frontmatter)."""
+        ...
+
+    @abstractmethod
+    def get_skeleton(self) -> str:
+        """Return vault skeleton (valid link targets) for deep linking."""
         ...
 
 

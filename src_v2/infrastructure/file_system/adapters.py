@@ -5,7 +5,7 @@ from pathlib import Path
 
 import frontmatter
 
-from src_v2.core.domain.models import Frontmatter, Note, ValidationResult
+from src_v2.core.domain.models import CodeRegistryEntry, Frontmatter, Note, ValidationResult
 from src_v2.core.interfaces.ports import VaultRepository
 
 EXCLUDED_DIRS = frozenset({
@@ -66,10 +66,12 @@ class ObsidianFileSystemAdapter(VaultRepository):
         *,
         projects_folder: str | None = None,
         areas_folder: str | None = None,
+        resources_folder: str | None = None,
     ) -> None:
         self.vault_root = Path(vault_root)
         self.projects_folder = projects_folder or os.getenv("OBSIDIAN_PROJECTS_FOLDER", "20. Projects")
         self.areas_folder = areas_folder or os.getenv("OBSIDIAN_AREAS_FOLDER", "30. Areas")
+        self.resources_folder = resources_folder or os.getenv("OBSIDIAN_RESOURCES_FOLDER", "40. Resources")
         self._registry: dict[str, str] = {}
 
     def _resolve_path(self, path: Path) -> Path:
@@ -183,3 +185,54 @@ class ObsidianFileSystemAdapter(VaultRepository):
                 if validation is not None:
                     results.append(validation)
         return results
+
+    def get_code_registry_entries(self) -> list[CodeRegistryEntry]:
+        """Return code registry entries from Areas and Projects (files with code in frontmatter)."""
+        entries: list[CodeRegistryEntry] = []
+        for folder_name in (self.areas_folder, self.projects_folder):
+            scan_path = self.vault_root / folder_name
+            if not scan_path.exists():
+                continue
+            for file_path in scan_path.rglob("*.md"):
+                if _is_excluded(file_path, self.vault_root):
+                    continue
+                try:
+                    post = frontmatter.load(file_path)
+                    code = post.metadata.get("code")
+                    if not code:
+                        continue
+                    folder = str(file_path.relative_to(self.vault_root).parent)
+                    entries.append(
+                        CodeRegistryEntry(
+                            code=code,
+                            name=file_path.stem,
+                            type=post.metadata.get("type", ""),
+                            folder=folder,
+                        )
+                    )
+                except Exception:
+                    continue
+        return entries
+
+    def get_skeleton(self) -> str:
+        """Return vault skeleton (valid link targets) for deep linking."""
+        skeleton: list[str] = []
+        for folder_name in (self.areas_folder, self.projects_folder, self.resources_folder):
+            scan_path = self.vault_root / folder_name
+            if not scan_path.exists():
+                continue
+            for file_path in scan_path.rglob("*.md"):
+                if _is_excluded(file_path, self.vault_root):
+                    continue
+                try:
+                    post = frontmatter.load(file_path)
+                    title = post.metadata.get("title", file_path.stem)
+                    aliases = _normalize_to_list(post.metadata.get("aliases"))
+                    rel_path = file_path.relative_to(self.vault_root)
+                    entry = f"- [[{title}]] ({rel_path})"
+                    if aliases:
+                        entry += f" [Aliases: {', '.join(aliases)}]"
+                    skeleton.append(entry)
+                except Exception:
+                    continue
+        return "\n".join(skeleton)
