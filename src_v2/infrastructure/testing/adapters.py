@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from src_v2.core.domain.models import CodeRegistryEntry, Note, ValidationResult
-from src_v2.core.interfaces.ports import VaultRepository
+from src_v2.core.interfaces.ports import LLMProvider, VaultRepository
 
 
 class MockVaultAdapter(VaultRepository):
@@ -56,3 +56,21 @@ class MockVaultAdapter(VaultRepository):
     def set_skeleton(self, skeleton: str) -> None:
         """Helper to configure get_skeleton output for testing."""
         self._skeleton = skeleton
+
+
+class FakeLLM(LLMProvider):
+    """In-memory LLMProvider for unit tests. No API calls."""
+
+    def generate_text(self, prompt: str) -> str:
+        """Echo back the prompt."""
+        return prompt
+
+    def generate_proposal(
+        self,
+        instructions: str,
+        body: str,
+        context: str,
+        skeleton: str,
+    ) -> str:
+        """Return a predictable proposal including body and context for verification."""
+        return f"%%FILE: proposal.md%%\n---\n{body}\n---\n{context}"
