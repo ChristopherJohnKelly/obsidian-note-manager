@@ -74,3 +74,23 @@ class TestMaintenanceService:
                 reasons=["Missing tags"],
                 context="",
             )
+
+    def test_fix_file_delegates_reason_discovery(
+        self, populated_vault: MockVaultAdapter, fake_llm: FakeLLM
+    ) -> None:
+        """fix_file discovers reasons via repo.validate_note, not from CLI."""
+        from src_v2.config.context_config import ContextConfig
+        from src_v2.use_cases.assistant_service import AssistantService
+
+        config = ContextConfig(
+            system_instructions_path="nonexistent.md",
+            tag_glossary_path="nonexistent.md",
+        )
+        assistant = AssistantService(populated_vault, fake_llm, config)
+        service = MaintenanceService(
+            populated_vault, fake_llm, assistant_service=assistant
+        )
+        result = service.fix_file(Path("20. Projects/Pepsi/dirty.md"))
+        assert result
+        assert "%%FILE" in result
+        assert "Content without proper metadata" in result

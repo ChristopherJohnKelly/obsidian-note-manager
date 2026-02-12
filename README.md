@@ -96,8 +96,7 @@ obsidian-note-manager/
 │   └── README.md              # Quick start guide
 └── .github/
     └── workflows/
-        ├── ingest.yml         # Ingestion workflow
-        └── test-runner.yml    # Test workflow
+        └── ingest.yml         # Ingestion workflow
 ```
 
 ## Requirements

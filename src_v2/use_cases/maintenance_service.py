@@ -11,9 +11,45 @@ from src_v2.core.interfaces.ports import LLMProvider, VaultRepository
 class MaintenanceService:
     """Audits the vault for quality issues and generates fix proposals."""
 
-    def __init__(self, repo: VaultRepository, llm: LLMProvider) -> None:
+    def __init__(
+        self,
+        repo: VaultRepository,
+        llm: LLMProvider,
+        assistant_service: "AssistantService | None" = None,
+    ) -> None:
         self.repo = repo
         self.llm = llm
+        self.assistant_service = assistant_service
+
+    def fix_file(self, path: Path) -> str:
+        """
+        Validate the note, discover reasons, and generate a fix proposal.
+
+        Delegates reason discovery to the repo (validate_note) so fixes are
+        always based on the latest file state.
+
+        Args:
+            path: Path to the note (relative to vault root).
+
+        Returns:
+            str: Raw LLM response with %%FILE%% markers.
+
+        Raises:
+            FileNotFoundError: If the note is not found.
+            ValueError: If assistant_service was not provided (needed for context).
+        """
+        if self.assistant_service is None:
+            raise ValueError("fix_file requires AssistantService for context")
+
+        note = self.repo.get_note(path)
+        if not note:
+            raise FileNotFoundError(f"Note {path} not found")
+
+        validation = self.repo.validate_note(path)
+        reasons = validation.reasons if validation else ["Manual fix requested"]
+
+        context = self.assistant_service.get_full_context()
+        return self.generate_fix(path, reasons, context)
 
     def audit_vault(self) -> list[ValidationResult]:
         """

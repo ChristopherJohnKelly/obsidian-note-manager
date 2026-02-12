@@ -34,6 +34,11 @@ class VaultRepository(ABC):
         """Return vault skeleton (valid link targets) for deep linking."""
         ...
 
+    @abstractmethod
+    def validate_note(self, path: Path) -> ValidationResult | None:
+        """Validate a single note. Returns ValidationResult if issues found, else None."""
+        ...
+
 
 class LLMProvider(ABC):
     """Abstract interface for LLM operations."""

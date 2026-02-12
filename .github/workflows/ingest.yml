@@ -26,5 +26,4 @@ jobs:
           OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}  # Set vault root to workspace
         run: |
           echo "📂 Starting Ingestion..."
-          # The code is installed in the Docker container at /home/runner/src/
           python3 /home/runner/src/main.py

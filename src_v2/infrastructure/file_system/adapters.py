@@ -236,3 +236,11 @@ class ObsidianFileSystemAdapter(VaultRepository):
                 except Exception:
                     continue
         return "\n".join(skeleton)
+
+    def validate_note(self, path: Path) -> ValidationResult | None:
+        """Validate a single note. Returns ValidationResult if issues found, else None."""
+        self._registry = self._build_registry()
+        note = self.get_note(path)
+        if note is None:
+            return None
+        return self._validate_note(note)

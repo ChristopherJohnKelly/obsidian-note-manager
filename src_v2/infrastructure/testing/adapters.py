@@ -41,6 +41,13 @@ class MockVaultAdapter(VaultRepository):
         """Return pre-configured skeleton."""
         return self._skeleton
 
+    def validate_note(self, path: Path) -> ValidationResult | None:
+        """Return ValidationResult from scan results if path matches, else None."""
+        for r in self._scan_results:
+            if r.path == path:
+                return r
+        return None
+
     def add_note(self, path: Path, note: Note) -> None:
         """Helper to seed a note for testing."""
         self.files[path] = note

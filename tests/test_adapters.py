@@ -120,6 +120,20 @@ class TestMockVaultAdapter:
         assert len(adapter.scan_vault()) == 1
         assert adapter.scan_vault()[0].path == Path("y.md")
 
+    def test_validate_note_returns_result_when_in_scan_results(self) -> None:
+        results = [
+            ValidationResult(path=Path("x.md"), score=10, reasons=["Missing tags"]),
+        ]
+        adapter = MockVaultAdapter(initial_scan_results=results)
+        validation = adapter.validate_note(Path("x.md"))
+        assert validation is not None
+        assert validation.score == 10
+        assert "Missing tags" in validation.reasons
+
+    def test_validate_note_returns_none_when_not_in_scan_results(self) -> None:
+        adapter = MockVaultAdapter(initial_scan_results=[])
+        assert adapter.validate_note(Path("clean.md")) is None
+
 
 class TestGeminiAdapter:
     """Tests for GeminiAdapter."""
