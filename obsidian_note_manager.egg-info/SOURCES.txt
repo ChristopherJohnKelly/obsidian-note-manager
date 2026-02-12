@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+obsidian_note_manager.egg-info/PKG-INFO
+obsidian_note_manager.egg-info/SOURCES.txt
+obsidian_note_manager.egg-info/dependency_links.txt
+obsidian_note_manager.egg-info/requires.txt
+obsidian_note_manager.egg-info/top_level.txt
+src_v2/__init__.py
+src_v2/config/__init__.py
+src_v2/core/__init__.py
+src_v2/core/domain/__init__.py
+src_v2/core/domain/models.py
+src_v2/core/interfaces/__init__.py
+src_v2/core/interfaces/ports.py
+src_v2/infrastructure/__init__.py
+src_v2/use_cases/__init__.py
