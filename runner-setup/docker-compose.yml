@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   librarian-runner:
     build:
-      context: .
+      context: ../
+      dockerfile: runner-setup/Dockerfile
       args:
-        # Change to 'x64' if running on non-Apple Silicon Mac
         RUNNER_ARCH: arm64 
     image: obs-librarian-runner
     environment:
