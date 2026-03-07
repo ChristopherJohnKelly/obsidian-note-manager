@@ -8,7 +8,7 @@ from pathlib import Path
 from src_v2.config.settings import Settings
 from src_v2.core.domain.models import Frontmatter, Note
 from src_v2.infrastructure.file_system.adapters import ObsidianFileSystemAdapter
-from src_v2.infrastructure.testing.adapters import FakeLLM
+from src_v2.infrastructure.llm.adapters import GeminiAdapter
 from src_v2.use_cases.librarian_service import LibrarianService
 from src_v2.use_cases.maintenance_service import MaintenanceService
 

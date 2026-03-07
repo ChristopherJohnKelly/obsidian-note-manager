@@ -9,7 +9,6 @@ from src_v2.config.settings import Settings
 from src_v2.core.domain.models import Frontmatter, Note
 from src_v2.infrastructure.file_system.adapters import ObsidianFileSystemAdapter
 from src_v2.infrastructure.llm.adapters import GeminiAdapter
-from src_v2.infrastructure.testing.adapters import FakeLLM
 from src_v2.use_cases.assistant_service import AssistantService
 from src_v2.use_cases.librarian_service import LibrarianService
 from src_v2.use_cases.maintenance_service import MaintenanceService
@@ -33,7 +32,18 @@ def _cmd_update_registry(args: argparse.Namespace) -> int:
 def _cmd_audit(args: argparse.Namespace) -> int:
     settings = Settings()
     repo = ObsidianFileSystemAdapter(settings.vault_root)
-    llm = FakeLLM()
+
+    # Require API key just like the other commands
+    if not settings.gemini_api_key:
+        print("Error: GEMINI_API_KEY is required for audit command.", file=sys.stderr)
+        return 1
+        
+    try:
+        llm = GeminiAdapter(api_key=settings.gemini_api_key)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
     service = MaintenanceService(repo, llm)
     results = service.audit_vault()
     if not results:
