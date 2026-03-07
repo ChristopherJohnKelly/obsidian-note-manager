@@ -1,0 +1,29 @@
+name: Night Watchman Maintenance
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Runs every day at 2:00 AM UTC
+  workflow_dispatch:    # Allows you to trigger it manually from github.com
+
+jobs:
+  maintain:
+    runs-on: self-hosted # Targets your Raspberry Pi
+    steps:
+      - name: Checkout Vault
+        uses: actions/checkout@v4
+        
+      - name: Run Night Watchman (Registry & Audit)
+        env:
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # This calls the new entrypoint we built in Bubble 5
+          python3 -m src_v2.entrypoints.cron_runner
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "github-actions-runner"
+          git config user.email "runner@obsidian-note-manager.local"
+          git add .
+          git commit -m "chore: automated vault maintenance (Code Registry)" || exit 0
+          git push

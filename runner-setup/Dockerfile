@@ -34,10 +34,15 @@ USER runner
 RUN pip3 install --user google-generativeai python-frontmatter gitpython pyyaml requests
 
 # 6. Copy Application Source Code
-COPY --chown=runner:runner src ./src
+COPY --chown=runner:runner runner-setup/src ./src
 
 # 7. Copy Startup Script
-COPY --chown=runner:runner entrypoint.sh ./entrypoint.sh
+COPY --chown=runner:runner runner-setup/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
+
+# 8. Copy and Install New v2 Architecture (NEW)
+COPY --chown=runner:runner pyproject.toml ./
+COPY --chown=runner:runner src_v2 ./src_v2
+RUN pip3 install --user -e .
 
 ENTRYPOINT ["./entrypoint.sh"]
