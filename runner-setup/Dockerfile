@@ -43,6 +43,7 @@ RUN chmod +x ./entrypoint.sh
 # 8. Copy and Install New v2 Architecture (NEW)
 COPY --chown=runner:runner pyproject.toml ./
 COPY --chown=runner:runner src_v2 ./src_v2
-RUN pip3 install --user -e .
+RUN pip3 install --user --upgrade pip setuptools
+RUN pip3 install --user .
 
 ENTRYPOINT ["./entrypoint.sh"]
