@@ -7,7 +7,7 @@ name = "obsidian-note-manager"
 version = "0.1.0"
 description = "Obsidian Vault automation with Clean Architecture"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
