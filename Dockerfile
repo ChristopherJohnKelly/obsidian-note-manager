@@ -33,17 +33,14 @@ USER runner
 # We install these globally in the container for the runner user
 RUN pip3 install --user google-generativeai python-frontmatter gitpython pyyaml requests
 
-# 6. Copy Application Source Code
-COPY --chown=runner:runner runner-setup/src ./src
+# 6. Copy Scripts (entrypoint, token_fetcher)
+COPY --chown=runner:runner scripts/ ./scripts/
+RUN chmod +x ./scripts/entrypoint.sh
 
-# 7. Copy Startup Script
-COPY --chown=runner:runner runner-setup/entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-
-# 8. Copy and Install New v2 Architecture (NEW)
+# 7. Copy and Install Application (src_v2)
 COPY --chown=runner:runner pyproject.toml ./
 COPY --chown=runner:runner src_v2 ./src_v2
 RUN pip3 install --user --upgrade pip setuptools
 RUN pip3 install --user .
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["./scripts/entrypoint.sh"]
