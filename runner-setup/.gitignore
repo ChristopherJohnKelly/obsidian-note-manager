@@ -7,3 +7,6 @@ _work/
 # Runner configuration files (contain sensitive tokens)
 .runner
 .env.runner
+
+__pycache__/
+*.py[cod]
