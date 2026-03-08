@@ -9,6 +9,7 @@ from src_v2.config.settings import Settings
 from src_v2.entrypoints.chainlit_helpers import scan_top_level_dirs
 from src_v2.infrastructure.file_system.adapters import ObsidianFileSystemAdapter
 from src_v2.use_cases.chat_service import ChatService
+from src_v2.use_cases.proposal_service import ProposalService
 
 
 @cl.on_chat_start
@@ -67,6 +68,14 @@ async def on_message(message: cl.Message) -> None:
             active_area,
         )
         msg.content = response
+        msg.actions = [
+            cl.Action(
+                name="draft_updates",
+                payload="draft",
+                label="Draft Updates",
+                tooltip="Draft file updates to Obsidian Review Queue",
+            )
+        ]
         await msg.update()
     except ValueError as e:
         msg.content = str(e)
@@ -74,3 +83,44 @@ async def on_message(message: cl.Message) -> None:
     except Exception as e:
         msg.content = f"Error: {e}"
         await msg.update()
+
+
+@cl.action_callback("draft_updates")
+async def on_draft_updates(action: cl.Action) -> None:
+    """Trigger Agent 2 (The Proposer) to draft file updates to the Review Queue."""
+    await action.remove()
+
+    status_msg = cl.Message(content="Drafting proposal to Obsidian Review Queue...")
+    await status_msg.send()
+
+    active_area = cl.user_session.get("active_area")
+    if not active_area or active_area == "(No vault folders found)":
+        status_msg.content = "Please select a valid Vault Area from Settings first."
+        await status_msg.update()
+        return
+
+    try:
+        history = cl.chat_context.to_openai()
+    except Exception:
+        history = []
+
+    settings = Settings()
+    repo = ObsidianFileSystemAdapter(settings.vault_root)
+    service = ProposalService(
+        repo,
+        vault_root=settings.vault_root,
+        review_dir=settings.review_dir,
+        api_key=settings.gemini_api_key or None,
+    )
+
+    try:
+        result = await asyncio.to_thread(
+            service.generate_draft,
+            history,
+            active_area,
+        )
+        status_msg.content = result
+    except Exception as e:
+        status_msg.content = f"Error: {e}"
+
+    await status_msg.update()
