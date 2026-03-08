@@ -39,6 +39,21 @@ class VaultRepository(ABC):
         """Validate a single note. Returns ValidationResult if issues found, else None."""
         ...
 
+    @abstractmethod
+    def list_note_paths_in(self, directory: Path) -> list[Path]:
+        """List .md file paths in a directory (relative to vault). Returns empty list if dir missing."""
+        ...
+
+    @abstractmethod
+    def read_raw(self, path: Path) -> str | None:
+        """Return raw file content or None if not found. No frontmatter parsing."""
+        ...
+
+    @abstractmethod
+    def delete_note(self, path: Path) -> None:
+        """Delete the file at path."""
+        ...
+
 
 class LLMProvider(ABC):
     """Abstract interface for LLM operations."""

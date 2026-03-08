@@ -244,3 +244,29 @@ class ObsidianFileSystemAdapter(VaultRepository):
         if note is None:
             return None
         return self._validate_note(note)
+
+    def list_note_paths_in(self, directory: Path) -> list[Path]:
+        """List .md file paths in a directory (relative to vault). Returns empty list if dir missing."""
+        full_dir = self._resolve_path(directory)
+        if not full_dir.exists() or not full_dir.is_dir():
+            return []
+        return sorted(
+            p.relative_to(self.vault_root)
+            for p in full_dir.glob("*.md")
+        )
+
+    def read_raw(self, path: Path) -> str | None:
+        """Return raw file content or None if not found. No frontmatter parsing."""
+        full_path = self._resolve_path(path)
+        if not full_path.exists():
+            return None
+        try:
+            return full_path.read_text(encoding="utf-8")
+        except Exception:
+            return None
+
+    def delete_note(self, path: Path) -> None:
+        """Delete the file at path."""
+        full_path = self._resolve_path(path)
+        if full_path.exists():
+            full_path.unlink()

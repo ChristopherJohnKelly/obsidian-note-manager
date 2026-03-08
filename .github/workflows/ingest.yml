@@ -3,27 +3,39 @@ name: Obsidian Ingestion Pipeline
 on:
   push:
     paths:
-      - '00. Inbox/0. Capture/**/*.md'  # Trigger on new captures
-      - '00. Inbox/1. Review Queue/**/*.md'  # Trigger on review queue changes (librarian: file)
+      - '00. Inbox/0. Capture/**/*.md' 
+      - '00. Inbox/1. Review Queue/**/*.md' 
     branches:
-      - master  # Branch is 'master'
+      - master 
+  workflow_dispatch: # Always good to have for manual testing!
 
 permissions:
   contents: write
 
 jobs:
   librarian:
-    runs-on: self-hosted  # Targets your Pi
+    runs-on: self-hosted # Targets your bilingual Pi container
     steps:
       - name: Checkout Vault
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Needed for push permission
 
-      - name: Run Librarian
+      - name: Run Librarian (Filer & Ingestion)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # Passed from GitHub Secrets
-          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}  # Set vault root to workspace
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # github.workspace is the root of the obsidian-notes repo we just checked out
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
         run: |
-          echo "📂 Starting Ingestion..."
-          python3 /home/runner/src/main.py
+          echo "📂 Starting Ingestion and Filer pipeline..."
+          python3 -m src_v2.entrypoints.ingest_runner
+
+      - name: Configure Git
+        run: |
+          git config user.name "Obsidian Librarian"
+          git config user.email "librarian@automation.local"
+
+      - name: Commit and push changes
+        run: |
+          git add -A
+          # Only commit if the Python script actually moved/changed files
+          git diff --staged --quiet || git commit -m "🤖 Librarian: Vault organization [skip ci]"
+          git push
