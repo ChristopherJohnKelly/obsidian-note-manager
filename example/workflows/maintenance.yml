@@ -12,18 +12,38 @@ jobs:
       - name: Checkout Vault
         uses: actions/checkout@v4
         
-      - name: Run Night Watchman (Registry & Audit)
+      - name: Run Night Watchman (Generate Fixes)
         env:
-          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
         run: |
-          # This calls the new entrypoint we built in Bubble 5
           python3 -m src_v2.entrypoints.cron_runner
 
-      - name: Commit and Push Changes
+      - name: Commit individual files
         run: |
-          git config user.name "github-actions-runner"
-          git config user.email "runner@obsidian-note-manager.local"
-          git add .
-          git commit -m "chore: automated vault maintenance (Code Registry)" || exit 0
-          git push
+          git config user.name "Obsidian Librarian"
+          git config user.email "librarian@automation.local"
+          
+          # Stage all changes first (this automatically handles renames and deletions)
+          git add -A
+          
+          # Iterate through staged files safely, handling spaces
+          git diff --name-only --cached | while IFS= read -r file; do
+            # Commit only the specific staged file
+            git commit -m "Maintenance: auto-fix $file" -- "$file" || true
+          done
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Maintenance: Proposed vault fixes"
+          body: |
+            The Night Watchman has audited the vault and proposed fixes for up to 10 files violating naming or metadata constraints.
+            
+            Please review the file diffs below. 
+            - To accept all: Merge this PR.
+            - To adjust a specific fix: Edit the file directly in the GitHub Web UI before merging.
+            - To reject all: Close this PR.
+          branch: librarian/nightly-fix
+          delete-branch: true

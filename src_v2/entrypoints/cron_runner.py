@@ -5,10 +5,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from src_v2.config.context_config import ContextConfig
 from src_v2.config.settings import Settings
 from src_v2.core.domain.models import Frontmatter, Note
+from src_v2.core.response_parser import parse_proposal
+from src_v2.core.vault_utils import note_from_raw_content
 from src_v2.infrastructure.file_system.adapters import ObsidianFileSystemAdapter
 from src_v2.infrastructure.llm.adapters import GeminiAdapter
+from src_v2.use_cases.assistant_service import AssistantService
 from src_v2.use_cases.librarian_service import LibrarianService
 from src_v2.use_cases.maintenance_service import MaintenanceService
 
@@ -57,12 +61,43 @@ def main() -> int:
         logger.exception("Registry update failed: %s", e)
 
     try:
-        maint = MaintenanceService(repo, llm)
+        config = ContextConfig()
+        assistant = AssistantService(repo, llm, config)
+        maint = MaintenanceService(repo, llm, assistant_service=assistant)
         results = maint.audit_vault()
         logger.info("Audit complete: %d file(s) need attention", len(results))
-        for r in results[:10]:
-            logger.info("  %s (score=%d): %s", r.path, r.score, ", ".join(r.reasons))
-        task2_ok = True
+
+        if not results:
+            logger.info("No offenders to fix")
+            task2_ok = True
+        else:
+            offenders = results[:10]
+            for i, r in enumerate(offenders, 1):
+                try:
+                    proposal = maint.fix_file(r.path)
+                    parsed = parse_proposal(proposal)
+                    if not parsed["files"]:
+                        logger.warning("No %%FILE%% blocks in fix for %s", r.path)
+                        continue
+
+                    file_data = parsed["files"][0]
+                    new_path_str = file_data["path"]
+                    content = file_data["content"]
+
+                    if ".." in new_path_str or new_path_str.startswith("/"):
+                        logger.warning("Rejected unsafe path: %s", new_path_str)
+                        continue
+
+                    new_path = Path(new_path_str)
+                    note = note_from_raw_content(new_path, content)
+
+                    if str(new_path) != str(r.path):
+                        repo.delete_note(r.path)
+                    repo.save_note(new_path, note)
+                    logger.info("Fixed %d/%d: %s", i, len(offenders), new_path)
+                except Exception as e:
+                    logger.exception("Fix failed for %s: %s", r.path, e)
+            task2_ok = True
     except Exception as e:
         logger.exception("Audit failed: %s", e)
 

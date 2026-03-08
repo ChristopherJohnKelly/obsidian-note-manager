@@ -3,6 +3,10 @@
 import re
 from pathlib import Path
 
+import frontmatter
+
+from src_v2.core.domain.models import Frontmatter, Note
+
 
 def sanitize_filename(title: str, max_length: int = 200) -> str:
     """
@@ -53,3 +57,24 @@ def get_safe_path(target_path: Path) -> Path:
         if not candidate.exists():
             return candidate
         counter += 1
+
+
+def note_from_raw_content(path: Path, raw_content: str) -> Note:
+    """
+    Parse raw markdown content (frontmatter + body) into a Note.
+
+    Used when applying LLM fix proposals. Does not validate or sanitize paths.
+
+    Args:
+        path: Path for the note (relative to vault root).
+        raw_content: Raw markdown string with YAML frontmatter.
+
+    Returns:
+        Note with parsed frontmatter and body.
+    """
+    try:
+        post = frontmatter.loads(raw_content)
+    except Exception:
+        post = frontmatter.Post(raw_content, **{})
+    fm = Frontmatter.model_validate(dict(post.metadata))
+    return Note(path=path, frontmatter=fm, body=post.content or "")
