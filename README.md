@@ -74,29 +74,24 @@ obsidian-note-manager/
 │   ├── code-registry.md       # Code relationships
 │   ├── troubleshooting.md     # Troubleshooting guide
 │   └── workflows.md           # Workflow documentation
-├── runner-setup/              # Docker setup for self-hosted runner
-│   ├── Dockerfile             # Container image definition
-│   ├── docker-compose.yml     # Container orchestration
-│   ├── entrypoint.sh          # Startup script
-│   ├── src/                   # Python application code
-│   │   ├── main.py            # Ingestion pipeline orchestrator
-│   │   ├── vault_maintenance.py # Maintenance pipeline orchestrator
-│   │   ├── processor.py       # Note processing coordinator
-│   │   ├── filer.py           # Proposal execution (filing)
-│   │   ├── fixer.py           # Maintenance fix generation
-│   │   ├── scanner.py         # Vault quality scanner
-│   │   ├── state_manager.py   # Scan history and cooldowns
-│   │   ├── context_loader.py  # Vault context loading
-│   │   ├── indexer.py         # Vault skeleton builder
-│   │   ├── llm_client.py      # Gemini API client
-│   │   ├── response_parser.py # LLM response parsing
-│   │   ├── yaml_parser.py     # Frontmatter parsing
-│   │   ├── vault_utils.py     # Shared utilities
-│   │   └── git_ops.py         # Git operations
-│   └── README.md              # Quick start guide
-└── .github/
-    └── workflows/
-        └── ingest.yml         # Ingestion workflow
+├── example/                   # Workflow templates for vault repo
+│   ├── README.md              # How to copy workflows to your vault
+│   └── workflows/
+│       ├── ingest.yml         # Ingestion workflow template
+│       └── maintenance.yml   # Maintenance workflow template
+├── scripts/                   # Runner setup scripts
+│   ├── entrypoint.sh          # Container startup script
+│   ├── token_fetcher.py       # PAT-based runner registration
+│   ├── test_note.md           # Development test file
+│   └── requirements.txt       # Local dev dependencies
+├── src_v2/                    # Application code (Clean Architecture)
+│   ├── entrypoints/           # CLI and workflow entry points
+│   ├── use_cases/             # Business logic
+│   ├── core/                  # Domain and interfaces
+│   └── infrastructure/        # External adapters
+├── Dockerfile                 # Container image definition
+├── docker-compose.yml        # Container orchestration
+└── .env.example               # Environment template
 ```
 
 ## Requirements
@@ -133,7 +128,7 @@ obsidian-note-manager/
 
 The maintenance pipeline can run:
 - **Scheduled**: Via GitHub Actions cron trigger
-- **Manually**: `python3 src/vault_maintenance.py`
+- **Manually**: `python3 -m src_v2.entrypoints.cron_runner` (or trigger workflow manually)
 
 It will:
 1. Scan for quality issues (missing metadata, naming violations)
@@ -143,14 +138,11 @@ It will:
 ### Manual Testing
 
 ```bash
-# Test Gemini API connection
-docker compose exec librarian-runner python3 src/test_gemini.py
-
-# Process a single note manually
-docker compose exec librarian-runner python3 src/run_manual.py /path/to/note.md /vault/root
+# Run ingestion pipeline manually (from repo root with vault checked out)
+docker compose exec librarian-runner python3 -m src_v2.entrypoints.ingest_runner
 
 # Run maintenance scan manually
-docker compose exec librarian-runner python3 src/vault_maintenance.py
+docker compose exec librarian-runner python3 -m src_v2.entrypoints.cron_runner
 ```
 
 ## Workflow States

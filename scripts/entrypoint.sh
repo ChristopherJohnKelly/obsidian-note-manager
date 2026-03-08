@@ -28,7 +28,7 @@ if [ -n "$GITHUB_PAT" ]; then
   # Use PAT to fetch registration token dynamically
   echo "🔑 Fetching registration token using PAT..."
   set +e
-  REGISTRATION_TOKEN=$(python3 src/token_fetcher.py "$REPO_URL" "$GITHUB_PAT" 2>&1)
+  REGISTRATION_TOKEN=$(python3 scripts/token_fetcher.py "$REPO_URL" "$GITHUB_PAT" 2>&1)
   TOKEN_EXIT_CODE=$?
   set -e
   
