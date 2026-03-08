@@ -32,7 +32,12 @@ def main() -> int:
     settings = Settings()
     logger = _setup_logging(settings)
     repo = ObsidianFileSystemAdapter(settings.vault_root)
-    llm = FakeLLM()
+        
+    try:
+        llm = GeminiAdapter(api_key=settings.gemini_api_key)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
     task1_ok = False
     task2_ok = False
