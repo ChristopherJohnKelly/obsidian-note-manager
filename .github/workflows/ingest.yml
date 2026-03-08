@@ -20,10 +20,30 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}  # Needed for push permission
 
+      - name: Checkout obsidian-note-manager
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/obsidian-note-manager
+          path: obsidian-note-manager
+
+      - name: Install obsidian-note-manager
+        run: pip install -e obsidian-note-manager
+
       - name: Run Librarian
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # Passed from GitHub Secrets
-          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}  # Set vault root to workspace
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
         run: |
           echo "📂 Starting Ingestion..."
-          python3 /home/runner/src/main.py
+          python3 -m src_v2.entrypoints.ingest_runner
+
+      - name: Configure Git
+        run: |
+          git config user.name "Obsidian Librarian"
+          git config user.email "librarian@automation.local"
+
+      - name: Commit and push changes
+        run: |
+          git add -A
+          git diff --staged --quiet || git commit -m "🤖 Librarian: updates [skip ci]"
+          git push

@@ -35,3 +35,13 @@ class Settings(BaseSettings):
         alias="OBSIDIAN_REGISTRY_PATH",
         description="Relative path for the Code Registry output file",
     )
+    capture_dir: str = Field(
+        default="00. Inbox/0. Capture",
+        alias="OBSIDIAN_CAPTURE_DIR",
+        description="Relative path for the Capture folder",
+    )
+    review_dir: str = Field(
+        default="00. Inbox/1. Review Queue",
+        alias="OBSIDIAN_REVIEW_DIR",
+        description="Relative path for the Review Queue folder",
+    )
