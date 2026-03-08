@@ -24,6 +24,12 @@ Scans existing vault notes for quality issues:
 
 The system runs on a **Raspberry Pi** using a **GitHub Actions self-hosted runner** in a Docker container.
 
+## Three Modes of Operation
+
+1. **Manual**: Direct human interaction with Obsidian; no automation.
+2. **Asynchronous Automation (Night Watchman)**: Runs nightly via `cron_runner` (maintenance.yml) to audit the vault against conventions and log offenders.
+3. **Event-Driven Ingestion**: Runs on push to Capture/Review Queue via `ingest_runner` (ingest.yml) to file approved proposals and ingest new notes via the LLM.
+
 ## Quick Start
 
 1. **Setup**: Follow the [Setup Guide](docs/setup.md)
@@ -40,7 +46,7 @@ The system consists of:
 - **GitHub Actions Workflows**: Trigger on note pushes (ingestion) and scheduled runs (maintenance)
 - **Self-Hosted Runner**: Docker container on Raspberry Pi that executes jobs
 - **Python Application**: Dual-pipeline processing using Gemini AI
-- **Git Operations**: Commits and pushes processed notes back to the repository
+- **Git Operations**: Workflow steps perform `git commit` and `git push` (Python mutates files only)
 
 For more details, see the [Architecture Overview](docs/architecture.md).
 
