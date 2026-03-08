@@ -14,6 +14,7 @@ dependencies = [
     "pytest>=7.0",
     "google-generativeai>=0.3.0",
     "python-frontmatter>=1.0.0",
+    "chainlit>=1.0.0",
 ]
 
 [project.optional-dependencies]
