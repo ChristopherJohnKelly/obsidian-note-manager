@@ -22,3 +22,7 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# venv
+venv/
+.venv/
