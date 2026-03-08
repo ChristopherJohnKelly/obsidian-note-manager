@@ -1,28 +1,146 @@
 # API Reference
 
-This document provides a technical reference for all classes, functions, and modules in the Obsidian Note Automation system.
+This document provides a technical reference for the `src_v2` codebase. The legacy `runner-setup/src/` modules have been deprecated.
 
-## Module: `main`
+## Entry Points
 
-### Functions
+### `src_v2.entrypoints.ingest_runner`
 
-#### `clean_markdown(content: str) -> str`
+#### `main() -> int`
 
-Removes any existing frontmatter from raw note content.
+Headless entry point for the Capture-to-Review-Queue pipeline. Used by `ingest.yml` workflow.
+
+**Environment Variables**:
+- `OBSIDIAN_VAULT_ROOT`: Path to vault root (from workflow: `${{ github.workspace }}`)
+- `GEMINI_API_KEY`: Google Gemini API key
+
+**Returns**: 0 on success, 1 on failure
+
+**Invocation**: `python3 -m src_v2.entrypoints.ingest_runner`
+
+---
+
+### `src_v2.entrypoints.cron_runner`
+
+#### `main() -> int`
+
+Headless entry point for the Night Watchman. Used by `maintenance.yml` workflow.
+
+**Environment Variables**: Same as ingest_runner
+
+**Invocation**: `python3 -m src_v2.entrypoints.cron_runner`
+
+---
+
+### `src_v2.entrypoints.cli`
+
+#### `main() -> int`
+
+CLI entry point for manual commands.
+
+**Commands**:
+- `obsidian librarian update-registry`
+- `obsidian maintain audit`
+- `obsidian maintain fix <path>`
+- `obsidian assist blueprint <request>`
+
+**Invocation**: `python3 -m src_v2.entrypoints.cli <command>` or `obsidian <command>`
+
+---
+
+## Domain Models (`src_v2.core.domain.models`)
+
+### `Frontmatter`
+
+Structured metadata for an Obsidian note.
+
+**Fields**: `type`, `status`, `title`, `aliases`, `tags`, `code`, `folder` (all optional)
+
+---
+
+### `Note`
+
+Obsidian note with path, frontmatter, and body.
+
+**Fields**:
+- `path` (Path): File path
+- `frontmatter` (Frontmatter): Metadata
+- `body` (str): Note content
+
+---
+
+### `ValidationResult`
+
+Night Watchman scan result.
+
+**Fields**:
+- `path` (Path): File path
+- `score` (int): Quality deficit score
+- `reasons` (list[str]): Issue descriptions
+
+---
+
+### `CodeRegistryEntry`
+
+Code Registry entry from Areas/Projects.
+
+**Fields**: `code`, `name`, `type`, `folder`
+
+---
+
+## Ports (`src_v2.core.interfaces.ports`)
+
+### `VaultRepository` (ABC)
+
+Abstract interface for vault storage.
+
+**Methods**:
+- `get_note(path) -> Note | None`
+- `save_note(path, note) -> None`
+- `scan_vault() -> list[ValidationResult]`
+- `get_code_registry_entries() -> list[CodeRegistryEntry]`
+- `get_skeleton() -> str`
+- `validate_note(path) -> ValidationResult | None`
+- `list_note_paths_in(directory) -> list[Path]`
+- `read_raw(path) -> str | None`
+- `delete_note(path) -> None`
+
+---
+
+### `LLMProvider` (ABC)
+
+Abstract interface for LLM operations.
+
+**Methods**:
+- `generate_text(prompt: str) -> str`
+- `generate_proposal(instructions, body, context, skeleton) -> str`
+
+---
+
+## Core Utilities
+
+### `src_v2.core.response_parser`
+
+#### `parse_proposal(text: str) -> ParsedProposal`
+
+Parses LLM output with %%FILE%% markers into structured data.
 
 **Parameters**:
-- `content` (str): Raw note content that may contain frontmatter
+- `text` (str): Raw LLM response
 
-**Returns**:
-- `str`: Cleaned note body without frontmatter
+**Returns**: Dict with `explanation` and `files` keys. `files` is list of `{"path": str, "content": str}`.
 
-**Example**:
-```python
-content = "---\ntitle: Test\n---\nBody content"
-cleaned = clean_markdown(content)  # Returns: "Body content"
+**Expected Format**:
+```
+%%EXPLANATION%%
+...
+%%FILE: path/to/file.md%%
+...
 ```
 
 ---
+
+### `src_v2.core.vault_utils`
 
 #### `sanitize_filename(title: str, max_length: int = 200) -> str`
 
@@ -30,658 +148,139 @@ Sanitizes a title to create a valid filename.
 
 **Parameters**:
 - `title` (str): The title to sanitize
-- `max_length` (int, optional): Maximum filename length (default: 200)
+- `max_length` (int): Maximum filename length (default: 200)
 
-**Returns**:
-- `str`: Sanitized filename (without extension)
-
-**Allowed Characters**: Letters, numbers, spaces, dots, dashes, underscores, parentheses
-
----
-
-#### `main() -> None`
-
-Main orchestrator function for the ingestion pipeline.
-
-**Environment Variables**:
-- `OBSIDIAN_VAULT_ROOT`: Path to Obsidian vault root (default: current directory)
-
----
-
-## Module: `vault_maintenance`
-
-### Functions
-
-#### `check_conflict(file_path: Path) -> bool`
-
-Returns True if the file has been modified in the last hour.
-
-**Parameters**:
-- `file_path` (Path): Path object to the file to check
-
-**Returns**:
-- `bool`: True if file was modified recently (conflict), False otherwise
-
-**Purpose**: Prevents the bot from interfering with active user work.
-
----
-
-#### `print_results(candidates: list) -> None`
-
-Prints scan results in a formatted table.
-
-**Parameters**:
-- `candidates` (list): List of candidate dicts with "path", "score", "reasons" keys
-
----
-
-#### `main() -> None`
-
-Main orchestrator function for the maintenance pipeline.
-
-**Environment Variables**:
-- `OBSIDIAN_VAULT_ROOT`: Path to Obsidian vault root (default: current directory)
-
----
-
-## Module: `processor`
-
-### Class: `NoteProcessor`
-
-Orchestrates note analysis with Gemini AI.
-
-#### `__init__(self, vault_root: str)`
-
-Initialize the note processor.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-
-**Initializes**:
-- `self.llm` (LLMClient): Gemini API client with system instruction
-- `self.loader` (ContextLoader): Context loader for vault files
-- `self.parser` (ResponseParser): Parser for LLM responses
-
----
-
-#### `_extract_instructions(self, content: str) -> tuple`
-
-Extracts LLM-Instructions block from note content.
-
-**Parameters**:
-- `content` (str): Raw note content
-
-**Returns**:
-- `tuple`: (instructions, cleaned_body) or (None, content) if no instructions
-
-**Pattern**: Looks for ``` `LLM-Instructions ... ` ``` blocks
-
----
-
-#### `process_note(self, note_content: str) -> str`
-
-Processes a note and generates a multi-file proposal.
-
-**Parameters**:
-- `note_content` (str): Raw note content (may contain instruction block)
-
-**Returns**:
-- `str`: Complete proposal note with frontmatter and sections
-
-**Raises**:
-- `Exception`: If LLM call fails or parsing fails
-
----
-
-## Module: `filer`
-
-### Class: `NoteFiler`
-
-Executes approved proposals by creating files in the vault.
-
-#### `__init__(self, vault_root: str)`
-
-Initialize the Note Filer.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-
-**Initializes**:
-- `self.vault_root` (Path): Vault root path
-- `self.review_dir` (Path): Path to Review Queue
-- `self.parser` (ResponseParser): Parser for proposal content
-
----
-
-#### `file_approved_notes(self) -> int`
-
-Executes proposals with 'librarian: file' by creating files.
-
-**Returns**:
-- `int`: Total number of files created
-
-**Process**:
-1. Scans Review Queue for `.md` files
-2. Filters for `librarian: file` in frontmatter
-3. Parses `%%FILE%%` blocks from body
-4. Creates files with appropriate collision handling
-5. Deletes processed proposals
-
-**Maintenance Fix Detection**:
-- Checks for `target-file` metadata
-- Handles renames vs in-place updates differently
-- Protects unrelated files at target paths
-
----
-
-## Module: `fixer`
-
-### Class: `MaintenanceFixer`
-
-Generates fix proposals for notes with quality issues.
-
-#### `__init__(self, vault_root: str, llm_client: LLMClient, context_loader: ContextLoader)`
-
-Initialize the Maintenance Fixer.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-- `llm_client` (LLMClient): LLMClient instance for generating proposals
-- `context_loader` (ContextLoader): ContextLoader instance for vault context
-
----
-
-#### `generate_fixes(self, candidates: list) -> list`
-
-Generates fix proposals for the given candidates.
-
-**Parameters**:
-- `candidates` (list): List of dicts with "path", "score", "reasons" keys
-
-**Returns**:
-- `list`: List of relative file paths that were successfully processed
-
-**Proposal Frontmatter**:
-```python
-{
-    "type": "file_change_proposal",
-    "target-file": rel_path,  # Original file path
-    "score": score,
-    "reason": "comma, separated, reasons",
-    "librarian": "review"
-}
-```
-
----
-
-## Module: `scanner`
-
-### Class: `VaultScanner`
-
-Scans the vault for quality issues.
-
-#### `__init__(self, vault_root: str, context_loader: ContextLoader)`
-
-Initialize the Vault Scanner.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-- `context_loader` (ContextLoader): ContextLoader instance for project registry
-
-**Initializes**:
-- `self.registry` (dict): Folder→code mapping from context_loader
-- `self.bad_titles` (set): Generic titles to flag ("untitled", "meeting", "note", "call")
-
----
-
-#### `_find_expected_code(self, folder_path: str) -> Optional[str]`
-
-Finds the expected project code for a folder path.
-
-**Parameters**:
-- `folder_path` (str): Relative folder path from vault root
-
-**Returns**:
-- `str`: Expected code if found, None otherwise
-
-**Logic**: Walks up directory tree to find most specific match in registry.
-
----
-
-#### `_score_file(self, path: Path) -> tuple`
-
-Calculates quality deficit score for a single file.
-
-**Parameters**:
-- `path` (Path): Full path to the file
-
-**Returns**:
-- `tuple`: (score, reasons_list)
-
-**Scoring**:
-- Missing aliases/tags: +10
-- Missing project code: +50
-- Generic filename: +20
-
----
-
-#### `scan(self) -> list`
-
-Scans the vault and identifies quality issues.
-
-**Returns**:
-- `list`: List of dicts with "path", "score", "reasons" keys
-
-**Scanned Directories**: `20. Projects/`, `30. Areas/`
-
----
-
-## Module: `state_manager`
-
-### Class: `StateManager`
-
-Tracks scan history and cooldown periods.
-
-#### `__init__(self, vault_root: str)`
-
-Initialize the State Manager.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-
-**History File**: `99. System/maintenance_history.json`
-
----
-
-#### `_load_history(self) -> dict`
-
-Loads history from JSON file with validation.
-
-**Returns**:
-- `dict`: History data with structure `{"last_run": str|None, "files": dict}`
-
----
-
-#### `save_history(self) -> None`
-
-Saves history to JSON file with current timestamp.
-
----
-
-#### `is_cooldown_active(self, rel_path: str, days: int = 7) -> bool`
-
-Checks if a file was proposed within the cooldown period.
-
-**Parameters**:
-- `rel_path` (str): Relative path to the file
-- `days` (int): Cooldown period in days (default: 7)
-
-**Returns**:
-- `bool`: True if cooldown is active (should skip)
-
----
-
-#### `record_scan(self, rel_path: str, score: int) -> None`
-
-Records that a file was scanned and proposed.
-
-**Parameters**:
-- `rel_path` (str): Relative path to the file
-- `score` (int): Quality deficit score
-
----
-
-#### `filter_candidates(self, candidates: list) -> list`
-
-Filters out candidates in cooldown period.
-
-**Parameters**:
-- `candidates` (list): List of candidate dicts with "path" key
-
-**Returns**:
-- `list`: Filtered list excluding candidates in cooldown
-
----
-
-## Module: `context_loader`
-
-### Class: `ContextLoader`
-
-Loads and aggregates context files from the Obsidian vault.
-
-#### `__init__(self, vault_root: str)`
-
-Initialize the context loader.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-
-**Initializes**:
-- `self.indexer` (VaultIndexer): For building vault skeleton
-
----
-
-#### `read_file(self, relative_path: str) -> str`
-
-Reads a file from the vault.
-
-**Parameters**:
-- `relative_path` (str): Relative path from vault root
-
-**Returns**:
-- `str`: File contents, or empty string if not found
-
----
-
-#### `_scan_code_files(self) -> list`
-
-Scans Areas and Projects for code information.
-
-**Returns**:
-- `list`: List of dicts with keys: code, name, type, folder
-
----
-
-#### `build_code_registry(self) -> str`
-
-Builds a markdown table of project codes.
-
-**Returns**:
-- `str`: Markdown table string
-
----
-
-#### `get_project_registry(self) -> dict`
-
-Builds folder→code mapping dictionary.
-
-**Returns**:
-- `dict`: Mapping of folder paths to project codes
-
-**Example**:
-```python
-{
-    "20. Projects/Pepsi": "PEPS",
-    "30. Areas/Clients/Coca-Cola": "COKE"
-}
-```
-
----
-
-#### `get_full_context(self) -> str`
-
-Aggregates all context into a single string.
-
-**Returns**:
-- `str`: Combined context with sections for System Instructions, Tag Glossary, Code Registry, and Vault Map
-
----
-
-## Module: `indexer`
-
-### Class: `VaultIndexer`
-
-Builds a skeleton of valid link targets.
-
-#### `__init__(self, vault_root: str)`
-
-Initialize the Vault Indexer.
-
-**Parameters**:
-- `vault_root` (str): Path to the root of the Obsidian vault
-
-**Scan Directories**: `30. Areas`, `20. Projects`, `40. Resources`
-
----
-
-#### `_normalize_aliases(self, aliases) -> list`
-
-Normalizes aliases to list format.
-
-**Parameters**:
-- `aliases`: Aliases from frontmatter (list, string, or comma-separated)
-
-**Returns**:
-- `list`: Normalized list of aliases
-
----
-
-#### `build_skeleton(self) -> str`
-
-Scans vault and returns formatted link targets.
-
-**Returns**:
-- `str`: Formatted list of entries
-
-**Format**: `- [[Title]] (path/to/file.md) [Aliases: alias1, alias2]`
-
----
-
-## Module: `llm_client`
-
-### Class: `LLMClient`
-
-Interfaces with Google Gemini API.
-
-#### `__init__(self, vault_root: str, model_name: str = "gemini-2.5-flash", system_instruction: Optional[str] = None)`
-
-Initialize the Gemini Client.
-
-**Parameters**:
-- `vault_root` (str): Path to vault root (for logging)
-- `model_name` (str): Gemini model name (default: "gemini-2.5-flash")
-- `system_instruction` (str, optional): System instruction for model
-
-**Environment Variables**:
-- `GEMINI_API_KEY`: Required
-
-**Raises**:
-- `ValueError`: If `GEMINI_API_KEY` not set
-
----
-
-#### `generate_content(self, prompt: str) -> str`
-
-Sends a prompt to Gemini and returns response.
-
-**Parameters**:
-- `prompt` (str): The user prompt
-
-**Returns**:
-- `str`: Model's text response
-
----
-
-#### `generate_proposal(self, instructions: str, body: str, context: str, skeleton: str, model_name: str = "gemini-2.5-flash") -> str`
-
-Generates a multi-file proposal using the Architect system prompt.
-
-**Parameters**:
-- `instructions` (str): User instructions from note
-- `body` (str): Raw note content
-- `context` (str): Full vault context
-- `skeleton` (str): Vault skeleton for deep linking
-- `model_name` (str): Model to use
-
-**Returns**:
-- `str`: Raw LLM response with `%%FILE%%` markers
-
----
-
-#### `_log_interaction(self, ...)`
-
-Archives the interaction for evaluation.
-
-**Log Location**: `99. System/Logs/Librarian/`
-
-**Format**: JSON with meta, input, and output fields
-
----
-
-## Module: `response_parser`
-
-### Class: `ResponseParser`
-
-Parses LLM output into structured data.
-
-#### `parse(self, text: str) -> dict`
-
-Parses LLM output blob into structured data.
-
-**Parameters**:
-- `text` (str): Raw LLM response
-
-**Returns**:
-- `dict`: Structure with "explanation" and "files" keys
-
-**Expected Input Format**:
-```
-%%EXPLANATION%%
-...reasoning...
-
-%%FILE: path/to/file.md%%
-...content...
-```
-
-**Return Structure**:
-```python
-{
-    "explanation": "reasoning text",
-    "files": [
-        {"path": "path/to/file.md", "content": "file content"}
-    ]
-}
-```
-
----
-
-## Module: `yaml_parser`
-
-### Functions
-
-#### `extract_yaml_from_response(response: str) -> Optional[str]`
-
-Extracts YAML from markdown code blocks.
-
-**Parameters**:
-- `response` (str): LLM response text
-
-**Returns**:
-- `Optional[str]`: Extracted YAML, or None if not found
-
----
-
-#### `parse_frontmatter(yaml_content: str) -> Dict`
-
-Parses YAML string into dictionary.
-
-**Parameters**:
-- `yaml_content` (str): YAML content string
-
-**Returns**:
-- `Dict`: Parsed frontmatter
-
-**Raises**:
-- `yaml.YAMLError`: On parsing failure
-
----
-
-## Module: `vault_utils`
-
-### Constants
-
-#### `EXCLUDED_DIRS`
-```python
-EXCLUDED_DIRS = {"99. System", "00. Inbox", ".git", ".obsidian", ".trash"}
-```
-
-### Functions
-
-#### `is_excluded(path: Path, vault_root: Path) -> bool`
-
-Checks if a path is in an excluded directory.
-
-**Parameters**:
-- `path` (Path): Full path to check
-- `vault_root` (Path): Root path of the vault
-
-**Returns**:
-- `bool`: True if path should be excluded
+**Returns**: Sanitized filename (without extension)
 
 ---
 
 #### `get_safe_path(target_path: Path) -> Path`
 
-Returns a path that doesn't exist, appending -N if needed.
+Returns a path that doesn't exist, appending `-N` if needed.
 
 **Parameters**:
 - `target_path` (Path): Desired file path
 
-**Returns**:
-- `Path`: Safe path that doesn't exist
-
-**Example**:
-```python
-# If Note.md exists:
-get_safe_path(Path("Note.md"))  # Returns Path("Note-1.md")
-```
+**Returns**: Safe path (e.g. `Note.md` → `Note-1.md` if Note.md exists)
 
 ---
 
-## Module: `git_ops`
+## Use Cases
 
-### Class: `GitOps`
+### `IngestionService`
 
-Handles Git commit and push operations.
+**Location**: `src_v2.use_cases.ingestion_service`
 
-#### `__init__(self, repo_path: str)`
+**Constructor**: `IngestionService(repo, llm, capture_dir, review_dir, vault_root)`
 
-Initialize GitOps.
-
-**Parameters**:
-- `repo_path` (str): Path to the git repository root
-
-**Git Actor**:
-- Name: "Obsidian Librarian"
-- Email: "librarian@automation.local"
+**Methods**:
+- `run() -> IngestionResult`: Process notes from Capture, write proposals to Review Queue
 
 ---
 
-#### `has_changes(self) -> bool`
+### `FilerService`
 
-Check for uncommitted changes.
+**Location**: `src_v2.use_cases.filer_service`
 
-**Returns**:
-- `bool`: True if there are changes (including untracked files)
+**Constructor**: `FilerService(repo, review_dir, vault_root)`
 
----
-
-#### `commit_and_push(self, message: str) -> None`
-
-Stages all changes, commits, and pushes.
-
-**Parameters**:
-- `message` (str): Commit message
-
-**Raises**:
-- `GitCommandError`: If git operations fail
+**Methods**:
+- `file_approved_notes() -> int`: Execute proposals with `librarian: file`; returns count filed
 
 ---
 
-## Module: `token_fetcher`
+### `MaintenanceService`
 
-### Functions
+**Location**: `src_v2.use_cases.maintenance_service`
+
+**Constructor**: `MaintenanceService(repo, llm, assistant_service=None)`
+
+**Methods**:
+- `audit_vault() -> list[ValidationResult]`: Scan vault for quality issues
+- `fix_file(path) -> str`: Generate fix proposal for a file
+
+---
+
+### `LibrarianService`
+
+**Location**: `src_v2.use_cases.librarian_service`
+
+**Constructor**: `LibrarianService(repo)`
+
+**Methods**:
+- `generate_registry() -> str`: Build Code Registry markdown table
+
+---
+
+### `AssistantService`
+
+**Location**: `src_v2.use_cases.assistant_service`
+
+**Constructor**: `AssistantService(repo, llm, config)`
+
+**Methods**:
+- `generate_blueprint(request: str) -> str`: Generate blueprint from user request
+- `fix_file(path) -> str`: Generate fix proposal for a file
+
+---
+
+## Infrastructure Adapters
+
+### `ObsidianFileSystemAdapter`
+
+**Location**: `src_v2.infrastructure.file_system.adapters`
+
+**Implements**: `VaultRepository`
+
+**Constructor**: `ObsidianFileSystemAdapter(vault_root: Path)`
+
+---
+
+### `GeminiAdapter`
+
+**Location**: `src_v2.infrastructure.llm.adapters`
+
+**Implements**: `LLMProvider`
+
+**Constructor**: `GeminiAdapter(api_key: str)`
+
+**Raises**: `ValueError` if `api_key` is empty
+
+---
+
+## Config
+
+### `Settings`
+
+**Location**: `src_v2.config.settings`
+
+**Purpose**: Loads configuration from environment variables.
+
+**Key attributes**: `vault_root`, `gemini_api_key`, `capture_dir`, `review_dir`, `registry_output_path`, `log_level`
+
+---
+
+### `ContextConfig`
+
+**Location**: `src_v2.config.context_config`
+
+**Purpose**: Context loading (system instructions, tag glossary paths).
+
+---
+
+## Scripts
+
+### `scripts.token_fetcher`
 
 #### `get_registration_token(repo_url: str, pat: str) -> str`
 
-Fetches GitHub Actions runner registration token.
+Fetches GitHub Actions runner registration token via PAT.
 
 **Parameters**:
 - `repo_url` (str): GitHub repository URL
-- `pat` (str): Personal Access Token with `repo` scope
+- `pat` (str): Classic Personal Access Token with `repo` scope
 
-**Returns**:
-- `str`: Registration token
+**Returns**: Registration token
 
 **API Endpoint**: `POST /repos/{owner}/{repo}/actions/runners/registration-token`
 
@@ -689,32 +288,22 @@ Fetches GitHub Actions runner registration token.
 
 ## Environment Variables
 
-### Required
+### Required (Workflow)
 
 | Variable | Type | Used By | Description |
 |----------|------|---------|-------------|
-| `GEMINI_API_KEY` | String | `LLMClient` | Google Gemini API key |
-| `OBSIDIAN_VAULT_ROOT` | Path | All modules | Path to vault root |
+| `GEMINI_API_KEY` | String | GeminiAdapter, use cases | Google Gemini API key |
+| `OBSIDIAN_VAULT_ROOT` | Path | Settings, adapters | Path to vault root (from `github.workspace`) |
 
-### Optional (Runner Setup)
+### Optional (Runner / Container)
 
 | Variable | Type | Used By | Description |
 |----------|------|---------|-------------|
-| `GITHUB_PAT` | String | `entrypoint.sh` | Classic PAT with `repo` scope |
-| `GITHUB_TOKEN` | String | `entrypoint.sh` | Direct registration token (legacy) |
-| `REPO_URL` | URL | `entrypoint.sh` | GitHub repository URL |
-| `RUNNER_NAME` | String | `entrypoint.sh` | Name for the runner |
-
----
-
-## Error Types
-
-| Error | Module | Cause |
-|-------|--------|-------|
-| `ValueError` | `llm_client` | `GEMINI_API_KEY` missing |
-| `yaml.YAMLError` | `yaml_parser` | YAML parsing failure |
-| `GitCommandError` | `git_ops` | Git operation failure |
-| `requests.HTTPError` | `token_fetcher` | GitHub API error |
+| `GITHUB_PAT` | String | entrypoint.sh | Classic PAT with `repo` scope |
+| `REPO_URL` | URL | entrypoint.sh | GitHub repository URL |
+| `RUNNER_NAME` | String | entrypoint.sh | Name for the runner |
+| `OBSIDIAN_CAPTURE_DIR` | Path | Settings | Override Capture dir (default: `00. Inbox/0. Capture`) |
+| `OBSIDIAN_REVIEW_DIR` | Path | Settings | Override Review dir (default: `00. Inbox/1. Review Queue`) |
 
 ---
 
@@ -724,12 +313,13 @@ Fetches GitHub Actions runner registration token.
 
 - `google-generativeai`: Gemini API client
 - `python-frontmatter`: Markdown frontmatter parsing
-- `gitpython`: Git operations
 - `pyyaml`: YAML parsing
-- `requests`: HTTP requests
+- `requests`: HTTP requests (token_fetcher)
+- `pydantic`: Domain models
 
 ### System Requirements
 
 - Python 3.10+
-- Git
 - Docker (for containerization)
+
+**Note**: Git operations are performed by workflow steps, not Python. The application does not use `gitpython`.

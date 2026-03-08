@@ -51,8 +51,10 @@ cd ~/
 
 # Clone the repository
 git clone https://github.com/christopherjohnkelly/obsidian-note-manager.git
-cd obsidian-note-manager/runner-setup
+cd obsidian-note-manager
 ```
+
+All subsequent commands (Docker, .env, etc.) run from the repository root.
 
 ### 3. Get a Google Gemini API Key
 
@@ -75,6 +77,8 @@ cd obsidian-note-manager/runner-setup
 7. Copy the token (starts with `ghp_`) - **Save it now, you won't see it again!**
 
 ### 5. Configure Environment Variables
+
+The `.env.example` file is at the repository root. From the `obsidian-note-manager` directory:
 
 ```bash
 # Copy the example environment file
@@ -114,59 +118,31 @@ In your **Obsidian notes repository** (not this code repository):
 
 ### 7. Deploy the Workflow File
 
-The workflow file must be in your **Obsidian notes repository**, not this code repository.
+Workflow templates live in `obsidian-note-manager/example/workflows/`. They **must be copied** to your **Obsidian notes repository** (vault repo) to function.
 
-**Option A: Copy the workflow file**
+**Option A: Copy the workflow files**
 ```bash
 # From your obsidian-notes repository
 mkdir -p .github/workflows
-cp /path/to/obsidian-note-manager/.github/workflows/ingest.yml .github/workflows/
-git add .github/workflows/ingest.yml
-git commit -m "Add Obsidian ingestion workflow"
+cp /path/to/obsidian-note-manager/example/workflows/ingest.yml .github/workflows/
+cp /path/to/obsidian-note-manager/example/workflows/maintenance.yml .github/workflows/
+git add .github/workflows/
+git commit -m "Add Obsidian automation workflows"
 git push
 ```
 
 **Option B: Create manually**
-Create `.github/workflows/ingest.yml` in your obsidian-notes repository with:
-```yaml
-name: Obsidian Ingestion Pipeline
-
-on:
-  push:
-    paths:
-      - '00. Inbox/0. Capture/**/*.md'
-    branches:
-      - master
-
-permissions:
-  contents: write
-
-jobs:
-  librarian:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Vault
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Librarian
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
-        run: |
-          echo "📂 Starting Ingestion..."
-          python3 /home/runner/src/main.py
-```
+Create `.github/workflows/ingest.yml` in your obsidian-notes repository. Use the template in `example/workflows/ingest.yml` as reference. The workflow must:
+- Run `python3 -m src_v2.entrypoints.ingest_runner` (not `src/main.py`)
+- Include explicit Git steps for commit and push (Python does not perform Git operations)
 
 ### 8. Build and Start the Docker Container
 
-```bash
-# Build the Docker image
-docker compose build
+From the repository root (`obsidian-note-manager`):
 
-# Start the container in detached mode
-docker compose up -d
+```bash
+# Build and start the container
+docker compose up -d --build
 
 # Check logs to verify registration
 docker compose logs -f
@@ -257,8 +233,7 @@ To update the Python application code:
 cd ~/obsidian-note-manager
 git pull
 
-# Rebuild and restart
-cd runner-setup
+# Rebuild and restart (from repo root)
 docker compose down
 docker compose build
 docker compose up -d
@@ -276,8 +251,8 @@ docker compose logs -f librarian-runner
 To remove the runner:
 
 ```bash
-# Stop and remove container
-cd ~/obsidian-note-manager/runner-setup
+# Stop and remove container (from repo root)
+cd ~/obsidian-note-manager
 docker compose down
 
 # Remove runner from GitHub

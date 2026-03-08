@@ -1,2 +1,0 @@
-[console_scripts]
-obsidian = src_v2.entrypoints.cli:main

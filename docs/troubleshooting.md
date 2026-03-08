@@ -8,10 +8,12 @@ This guide helps you diagnose and fix common issues with the Obsidian Note Autom
 - [Runner Shows as Offline](#runner-shows-as-offline)
 - [Workflow Not Triggering](#workflow-not-triggering)
 - [Workflow Fails with "No such file or directory"](#workflow-fails-with-no-such-file-or-directory)
+- [Git / Workflow Issues](#git--workflow-issues)
 - [Gemini API Errors](#gemini-api-errors)
-- [Git Push Fails](#git-push-fails)
 - [Runner Registration Token Errors](#runner-registration-token-errors)
+- [Runner Update / Docker Issues](#runner-update--docker-issues)
 - [Container Won't Start](#container-wont-start)
+- [General Debugging Tips](#general-debugging-tips)
 
 ---
 
@@ -59,7 +61,7 @@ docker compose down
 # Remove volumes if they exist
 docker compose down -v
 
-# Rebuild and start
+# Rebuild and start (from repo root)
 docker compose build
 docker compose up -d
 ```
@@ -69,10 +71,6 @@ docker compose up -d
 ## Runner Shows as Offline
 
 **Symptoms**: Runner appears in GitHub UI but shows as "Offline" (gray) instead of "Idle" (green)
-
-> 🔧 **For Raspberry Pi-specific offline issues**, see the comprehensive [Pi Offline Troubleshooting Guide](troubleshooting-pi-offline.md)
-
-**Possible Causes**:
 
 ### 1. Container Not Running
 
@@ -99,14 +97,143 @@ docker compose up -d
    docker compose restart librarian-runner
    ```
 
-### 3. Network Issues
+### 3. Network Connectivity Issues
 
-**Check**:
+The runner may connect initially but lose connection due to network issues.
+
+**Diagnostics**:
 ```bash
-docker compose exec librarian-runner curl -s https://api.github.com | head -3
+# Check if container can reach GitHub API
+docker compose exec librarian-runner curl -v https://api.github.com 2>&1 | head -20
+
+# Check DNS resolution
+docker compose exec librarian-runner nslookup api.github.com
+
+# Test runner service endpoint
+docker compose exec librarian-runner curl -v https://pipelinesghubeus6.actions.githubusercontent.com 2>&1 | head -20
 ```
 
-**Solution**: Verify network connectivity and firewall settings
+**What to look for**:
+- Connection timeout errors
+- DNS resolution failures
+- SSL/TLS certificate errors
+- Firewall blocking outbound HTTPS (443)
+
+### 4. Runner Process Not Running
+
+The container may be running but the Runner.Listener process may have crashed.
+
+**Diagnostics**:
+```bash
+# Check if Runner.Listener process is running
+docker compose exec librarian-runner ps aux | grep -E "Runner|run.sh"
+
+# Should show:
+# runner  X  ... /bin/bash ./run.sh
+# runner  Y  ... /home/runner/bin/Runner.Listener run
+
+# If process is missing, check recent logs
+docker compose logs librarian-runner --tail=100 | grep -i "error\|crash\|exit"
+```
+
+**Solution**: If process is missing, restart the container:
+```bash
+docker compose restart librarian-runner
+```
+
+### 5. Firewall or Proxy Issues
+
+Raspberry Pi may have firewall rules blocking outbound connections.
+
+**Diagnostics**:
+```bash
+# Check firewall status (on Raspberry Pi host, not container)
+sudo ufw status
+sudo iptables -L -n | grep -i drop
+
+# Check if port 443 is blocked
+docker compose exec librarian-runner nc -zv api.github.com 443
+
+# Test from host (not container)
+curl -v https://api.github.com | head -5
+```
+
+**Solution** (if outbound HTTPS blocked):
+```bash
+sudo ufw allow out 443/tcp
+```
+
+### 6. Time Synchronization Issues
+
+GitHub requires accurate system time for SSL/TLS connections.
+
+**Diagnostics**:
+```bash
+# Check container time
+docker compose exec librarian-runner date
+
+# Check host time
+date
+
+# Compare with GitHub API time
+curl -I https://api.github.com 2>&1 | grep -i date
+```
+
+**Solution**: If time is off, sync on Raspberry Pi:
+```bash
+sudo timedatectl set-ntp true
+sudo systemctl restart systemd-timesyncd
+```
+
+### 7. DNS Resolution Issues
+
+**Diagnostics**:
+```bash
+# Test DNS from container
+docker compose exec librarian-runner nslookup api.github.com
+docker compose exec librarian-runner nslookup pipelinesghubeus6.actions.githubusercontent.com
+
+# Check container's DNS servers
+docker compose exec librarian-runner cat /etc/resolv.conf
+```
+
+**Solution**: If DNS fails, add to `docker-compose.yml`:
+```yaml
+dns:
+  - 8.8.8.8
+  - 8.8.4.4
+```
+
+Or restart Docker network:
+```bash
+docker compose down
+docker network prune
+docker compose up -d
+```
+
+### 8. Runner Session State (Stale Session)
+
+**Solution**: Remove runner and force fresh registration:
+
+```bash
+# 1. Remove runner from GitHub UI
+#    Settings → Actions → Runners → Remove runner
+
+# 2. Stop and remove container (deletes .runner file)
+docker compose down
+
+# 3. Start fresh (from repo root)
+docker compose up -d
+
+# 4. Wait 30-60 seconds for registration
+docker compose logs -f librarian-runner
+```
+
+**Expected**:
+- `🔑 Fetching registration token using PAT...`
+- `✅ Runner Configured. Listening for jobs...`
+- `√ Connected to GitHub`
+- `Listening for Jobs`
 
 ---
 
@@ -120,7 +247,7 @@ docker compose exec librarian-runner curl -s https://api.github.com | head -3
 
 **Check**: The workflow file must be in your **Obsidian notes repository** (not this code repository)
 
-**Solution**: Verify `.github/workflows/ingest.yml` exists in your obsidian-notes repository
+**Solution**: Copy workflow templates from `obsidian-note-manager/example/workflows/` to your vault repo `.github/workflows/`. Verify `.github/workflows/ingest.yml` exists in your obsidian-notes repository.
 
 ### 2. Wrong Branch
 
@@ -135,7 +262,7 @@ git push origin master  # Push to master
 ### 3. Path Pattern Not Matching
 
 **Check**: File path must match exactly:
-- Path: `00. Inbox/0. Capture/**/*.md`
+- Path: `00. Inbox/0. Capture/**/*.md` or `00. Inbox/1. Review Queue/**/*.md`
 - Case-sensitive
 - Must be `.md` files
 
@@ -154,18 +281,113 @@ ls .github/workflows/ingest.yml  # Should exist
 
 ## Workflow Fails with "No such file or directory"
 
-**Symptoms**: Workflow runs but fails with `python3: can't open file 'src/main.py': No such file or directory`
+**Symptoms**: Workflow runs but fails with `python3: can't open file 'src/main.py': No such file or directory` or similar
 
-**Cause**: Workflow is trying to run `src/main.py` from the checked-out workspace, but the code is at `/home/runner/src/main.py` in the container
+**Cause**: Workflow is using legacy path. The application is now run as a Python module.
 
-**Solution**: Ensure workflow uses absolute path:
+**Solution**: Ensure workflow uses the correct module invocation:
 ```yaml
 run: |
-  python3 /home/runner/src/main.py  # Correct
-  # NOT: python3 src/main.py
+  python3 -m src_v2.entrypoints.ingest_runner
 ```
 
-**Check**: Verify your `.github/workflows/ingest.yml` in obsidian-notes repository uses the correct path
+**Check**: Verify your `.github/workflows/ingest.yml` in obsidian-notes repository uses `python3 -m src_v2.entrypoints.ingest_runner` (ingestion) or `python3 -m src_v2.entrypoints.cron_runner` (maintenance).
+
+---
+
+## Git / Workflow Issues
+
+**Symptoms**: Workflow completes successfully but the repository doesn't show any changes.
+
+- ✅ Workflow is triggered correctly
+- ✅ Runner picks up the job
+- ✅ Job completes with "success" status
+- ❌ Repository has no new commits
+- ❌ Files are not moved from Capture to Review Queue
+
+### Root Cause Hypotheses
+
+1. **No files found**: Capture folder is empty (or files already processed)
+2. **Processing fails silently**: Files found but processing throws exceptions
+3. **Git operations fail**: Processing succeeds but workflow's commit/push step fails
+4. **Wrong workspace**: Code is running in wrong directory
+5. **Git authentication**: Push fails due to permission issues
+
+### Diagnostic Steps
+
+**Step 1: Check Workflow Logs (GitHub Actions)**
+
+1. Go to: Repository → **Actions** tab
+2. Click on the latest workflow run
+3. Click on the **"Run Librarian"** or **"Run Night Watchman"** step
+4. **Review the output** - look for:
+   - `Filed X note(s) from Review Queue`
+   - `Ingested X note(s) from Capture`
+   - `Commit and push changes` step output
+
+**Step 2: Check Workspace State (Inside Container)**
+
+```bash
+# SSH into Raspberry Pi, then:
+docker compose exec librarian-runner bash
+
+# Find workspace (path varies by job)
+cd _work/*/obsidian-notes/obsidian-notes/ 2>/dev/null || echo "No workspace"
+
+# Check Capture folder
+ls -la "00. Inbox/0. Capture/" 2>/dev/null
+
+# Check Review Queue
+ls -la "00. Inbox/1. Review Queue/" 2>/dev/null
+
+# Check Git status
+git status
+git diff --name-only
+git log --oneline -5
+```
+
+**Interpretation**:
+- Files still in Capture → Not processed
+- Files in Review Queue but `git status` shows changes → Processed but workflow's commit step didn't run or failed
+- Recent commits but not on GitHub → Push failed
+
+**Step 3: Verify Workflow Git Steps**
+
+The Python application does **not** perform Git operations. The workflow must include explicit commit and push steps:
+
+```yaml
+- name: Configure Git
+  run: |
+    git config user.name "Obsidian Librarian"
+    git config user.email "librarian@automation.local"
+
+- name: Commit and push changes
+  run: |
+    git add -A
+    git diff --staged --quiet || git commit -m "🤖 Librarian: Vault organization [skip ci]"
+    git push
+```
+
+Ensure the workflow has `contents: write` permission and checkout uses `token: ${{ secrets.GITHUB_TOKEN }}`.
+
+### Common Git/Workflow Issues
+
+**Issue: "Capture folder is empty"**
+
+- Verify file is in `00. Inbox/0. Capture/`
+- Check file extension is `.md` (case-sensitive)
+- Ensure file was committed and pushed before workflow ran
+
+**Issue: Processing fails silently**
+
+- Check for traceback in workflow logs
+- Verify `GEMINI_API_KEY` secret is set
+- Check for file read/write permission issues
+
+**Issue: Commit step skipped**
+
+- The workflow uses `git diff --staged --quiet || git commit` - if no changes, commit is skipped (expected)
+- If Python made changes but commit didn't run, verify `OBSIDIAN_VAULT_ROOT` is set to `${{ github.workspace }}`
 
 ---
 
@@ -207,45 +429,6 @@ run: |
 
 ---
 
-## Git Push Fails
-
-**Symptoms**: Processing succeeds but commit/push fails with error 128 or authentication errors
-
-**Possible Causes**:
-
-### 1. Missing GITHUB_TOKEN
-
-**Check**: Workflow should have:
-```yaml
-- name: Checkout Vault
-  uses: actions/checkout@v4
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**Solution**: Ensure checkout action includes `token: ${{ secrets.GITHUB_TOKEN }}`
-
-### 2. Insufficient Permissions
-
-**Check**: Workflow needs `contents: write` permission:
-```yaml
-permissions:
-  contents: write
-```
-
-**Solution**: Add `permissions` block to workflow if missing
-
-### 3. Git Configuration Issues
-
-**Symptoms**: Error like "Git operation failed" or "fatal: could not read Username"
-
-**Solution**: The runner uses GitHub Actions' built-in authentication via `GITHUB_TOKEN`. Ensure:
-- Workflow has `contents: write` permission
-- Checkout action uses `token: ${{ secrets.GITHUB_TOKEN }}`
-- Repository settings allow GitHub Actions to write to repository
-
----
-
 ## Runner Registration Token Errors
 
 **Symptoms**: Error like "Forbidden: PAT may not have required permissions" or "Resource not accessible by personal access token"
@@ -270,13 +453,48 @@ permissions:
 2. Check `repo` scope (full control)
 3. Save and regenerate if needed
 
-### 3. PAT Not Installed (Fine-Grained)
+---
 
-**If using fine-grained PAT** (not recommended):
-- Fine-grained PATs must be installed/authorized for the repository
-- Go to: Repository → Settings → Secrets and variables → Actions → Fine-grained personal access tokens
+## Runner Update / Docker Issues
 
-**Better Solution**: Use Classic PAT (see above)
+**Symptoms**: Runner fails after attempting auto-update, exiting with error code 127 on `run-helper.sh` line 36.
+
+**Root Cause**: Exit code 127 means "command not found" - the runner update downloaded wrong architecture or missing dependencies.
+
+### Solution: Update Dockerfile to Match Auto-Update Version
+
+**Step 1**: Check what version the runner is trying to update to:
+```bash
+docker compose logs librarian-runner | grep -i "runner version\|downloading\|update"
+```
+
+**Step 2**: Update `Dockerfile` to use that version:
+```dockerfile
+ARG RUNNER_VERSION="2.331.0"  # Match the version runner wants
+```
+
+**Step 3**: Rebuild and restart (from repo root):
+```bash
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+**Why this works**: Starting with the target version prevents the auto-update from running, avoiding the update bug.
+
+### Clean Reinstall (If Above Doesn't Work)
+
+```bash
+# 1. Remove runner from GitHub UI: Settings → Actions → Runners → Remove
+
+# 2. Clean up
+docker compose down -v
+docker system prune -f
+
+# 3. Rebuild (after updating RUNNER_VERSION in Dockerfile)
+docker compose build --no-cache
+docker compose up -d
+```
 
 ---
 
@@ -286,12 +504,12 @@ permissions:
 
 ### 1. Missing Environment Variables
 
-**Check**: Verify `.env` file exists and has required variables:
+**Check**: Verify `.env` file exists at repo root and has required variables:
 ```bash
 cat .env | grep -E "GITHUB_PAT|REPO_URL|GEMINI_API_KEY"
 ```
 
-**Solution**: Create or update `.env` file with required variables
+**Solution**: Copy `.env.example` to `.env` and fill in values. Run from repo root.
 
 ### 2. Docker Not Running
 
@@ -305,13 +523,7 @@ docker ps
 sudo systemctl start docker
 ```
 
-### 3. Port Conflicts
-
-**Check**: No port conflicts (runner doesn't use exposed ports, but check for other issues)
-
-**Solution**: Check for other containers or services using resources
-
-### 4. Build Errors
+### 3. Build Errors
 
 **Check logs**:
 ```bash
@@ -350,11 +562,11 @@ docker compose exec librarian-runner cat .runner
 ### Test Manually
 
 ```bash
-# Test Gemini API
-docker compose exec librarian-runner python3 src/test_gemini.py
+# Run ingestion pipeline manually (from repo root, with vault checked out in workspace)
+docker compose exec librarian-runner python3 -m src_v2.entrypoints.ingest_runner
 
-# Test note processing
-docker compose exec librarian-runner python3 src/run_manual.py /path/to/note.md /vault/root
+# Run maintenance scan manually
+docker compose exec librarian-runner python3 -m src_v2.entrypoints.cron_runner
 ```
 
 ### Check Network Connectivity
@@ -388,6 +600,6 @@ If you've tried the solutions above and still have issues:
 | "GEMINI_API_KEY environment variable not set" | Missing API key | Set GitHub Secret `GEMINI_API_KEY` |
 | "Forbidden: PAT may not have required permissions" | PAT missing `repo` scope or fine-grained PAT | Use Classic PAT with `repo` scope |
 | "Resource not accessible by personal access token" | Fine-grained PAT | Switch to Classic PAT |
-| "No such file or directory: 'src/main.py'" | Wrong path in workflow | Use `/home/runner/src/main.py` |
+| "No such file or directory: 'src/main.py'" | Legacy path in workflow | Use `python3 -m src_v2.entrypoints.ingest_runner` |
 | "Runner connect error: session already exists" | Stale session | Remove runner from GitHub, restart container |
-| "Git operation failed: exit code(128)" | Git authentication issue | Check `GITHUB_TOKEN` and permissions |
+| "Git operation failed: exit code(128)" | Git authentication issue | Check `GITHUB_TOKEN` and `contents: write` permission |

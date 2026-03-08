@@ -1,12 +1,14 @@
 # Documentation Index
 
-Welcome to the Obsidian Note Automation documentation. This folder contains comprehensive technical documentation for the dual-pipeline system.
+Welcome to the Obsidian Note Automation documentation. This folder contains comprehensive technical documentation for the dual-pipeline system built on Clean Architecture (`src_v2/`).
 
 ## System Overview
 
 The system provides two complementary pipelines:
-- **Ingestion Pipeline** (The Librarian): Processes new notes from Capture folder
-- **Maintenance Pipeline** (Night Watchman): Scans vault for quality issues
+- **Ingestion Pipeline** (The Librarian): Processes new notes from Capture folder, files approved proposals
+- **Maintenance Pipeline** (Night Watchman): Scans vault for quality issues, generates fix proposals
+
+**Three Modes**: Manual (human-only), Asynchronous Automation (Night Watchman), Event-Driven Ingestion (Librarian).
 
 ## Getting Started
 
@@ -15,14 +17,15 @@ Step-by-step instructions for installing and configuring the system on a Raspber
 - Prerequisites and requirements
 - Docker installation
 - GitHub authentication setup
-- Environment variable configuration
+- Environment variable configuration (from repo root)
 - Deployment and verification
 
 ### [Architecture Overview](architecture.md)
 High-level system architecture, data flow, and component interactions. Covers:
-- Dual pipeline architecture diagram
+- Tri-part architecture (Data & Orchestration, Execution Hardware, Application Engine)
+- GitOps boundary (Python mutates files; workflows handle Git)
 - Ingestion and maintenance pipeline flows
-- Key components and their roles
+- Key components (src_v2 Clean Architecture)
 - Proposal types and metadata
 - Security and authentication
 
@@ -30,23 +33,22 @@ High-level system architecture, data flow, and component interactions. Covers:
 
 ### [Component Documentation](components.md)
 Detailed breakdown of each component in the system. Covers:
-- Pipeline orchestrators (`main.py`, `vault_maintenance.py`)
-- Processing components (`processor.py`, `filer.py`, `fixer.py`, `scanner.py`)
-- Shared infrastructure (`llm_client.py`, `context_loader.py`, `indexer.py`)
+- Entry points (ingest_runner, cron_runner, cli)
+- Use cases (IngestionService, FilerService, MaintenanceService, LibrarianService, AssistantService)
+- Core (domain models, ports, response_parser, vault_utils)
+- Infrastructure adapters (ObsidianFileSystemAdapter, GeminiAdapter)
 - Error handling patterns
 
 ### [API Reference](api-reference.md)
-Technical reference for all classes, functions, and modules. Covers:
-- Module documentation
+Technical reference for classes, functions, and modules. Covers:
+- src_v2 module documentation
 - Function signatures and parameters
-- Return values and exceptions
 - Environment variables
 - Type hints and dependencies
 
 ### [Code Registry](code-registry.md)
 Comprehensive registry of source files, classes, and methods. Covers:
-- File overview table
-- Detailed file registry with dependencies
+- File overview table (src_v2 Clean Architecture)
 - Dependency graph
 - Maintenance guide for common modifications
 - Testing checklist
@@ -54,36 +56,25 @@ Comprehensive registry of source files, classes, and methods. Covers:
 ### [Workflow Documentation](workflows.md)
 GitHub Actions workflow configuration and execution details. Covers:
 - Workflow structure and triggers
+- Source: `example/workflows/` (templates copied to vault repo)
 - Job configuration and steps
 - Environment variables and secrets
 - Execution flow
-- Monitoring and debugging
+
+### [Ingest Deployment](ingest-deployment.md)
+How to deploy the ingestion pipeline to your obsidian-notes repository.
 
 ## Troubleshooting
 
 ### [Troubleshooting Guide](troubleshooting.md)
-Common issues, solutions, and debugging tips. Covers:
-- Runner registration issues
-- Workflow triggering problems
-- API errors
-- Git operation failures
+Consolidated guide for common issues and solutions. Covers:
+- Runner not appearing / offline
+- Workflow not triggering
+- Git / workflow issues (repo not updated)
+- Runner update / Docker issues
+- Gemini API errors
 - Container startup issues
 - General debugging techniques
-
-### [Pi Offline Troubleshooting](troubleshooting-pi-offline.md)
-Comprehensive guide for Raspberry Pi-specific runner offline issues. Covers:
-- Network connectivity diagnostics
-- Firewall and proxy issues
-- Runner process debugging
-- Time synchronization
-- DNS resolution problems
-- Advanced debugging techniques
-
-### [Git Not Updated Troubleshooting](troubleshooting-git-not-updated.md)
-Guide for resolving Git synchronization issues.
-
-### [Runner Update Troubleshooting](troubleshooting-runner-update.md)
-Guide for updating the GitHub Actions runner.
 
 ## Documentation Guide
 
@@ -91,19 +82,18 @@ Guide for updating the GitHub Actions runner.
 
 Start here:
 1. **[Setup Guide](setup.md)** - Get the system up and running
-2. **[Architecture Overview](architecture.md)** - Understand the dual pipeline design
-3. **[Component Documentation](components.md)** - Learn about individual components
+2. **[Architecture Overview](architecture.md)** - Understand the tri-part design and GitOps boundary
+3. **[Component Documentation](components.md)** - Learn about src_v2 components
 4. **[Code Registry](code-registry.md)** - Understand code relationships
 
 ### Need to Troubleshoot?
 
 1. **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
 2. **[Workflow Documentation](workflows.md)** - Workflow-specific issues
-3. **[Pi Offline Troubleshooting](troubleshooting-pi-offline.md)** - Runner connectivity
 
 ### Want to Understand the Code?
 
-1. **[Code Registry](code-registry.md)** - File and class relationships
+1. **[Code Registry](code-registry.md)** - File and class relationships (src_v2)
 2. **[API Reference](api-reference.md)** - Technical API documentation
 3. **[Component Documentation](components.md)** - Component details and responsibilities
 
@@ -116,8 +106,7 @@ Start here:
 ## Quick Links
 
 - [Main README](../README.md) - Project overview
-- [Runner Setup README](../runner-setup/README.md) - Docker setup quick start
-- [GitHub Workflows](../.github/workflows/) - Workflow definitions
+- [Example Workflows](../example/workflows/) - Workflow templates (copy to vault repo `.github/workflows/`)
 
 ## Key Concepts
 
