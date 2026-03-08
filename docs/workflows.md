@@ -2,15 +2,31 @@
 
 This document explains the GitHub Actions workflow configuration and how it integrates with the Obsidian Note Automation system.
 
-## Workflow File: `ingest.yml`
+## Workflow Source and Deployment
 
-**Location**: `.github/workflows/ingest.yml` (in your **Obsidian notes repository**)
+**Important**: Workflow files are **templates** stored in `obsidian-note-manager/example/workflows/`. They **must be copied** to your target Obsidian vault repository's `.github/workflows/` directory to function.
 
-**Purpose**: Automatically processes notes from the Capture folder when they are pushed to GitHub.
+The obsidian-note-manager repository does not run these workflows. They run in your obsidian-notes (vault) repository.
+
+```bash
+# From your obsidian-notes repository
+mkdir -p .github/workflows
+cp /path/to/obsidian-note-manager/example/workflows/ingest.yml .github/workflows/
+cp /path/to/obsidian-note-manager/example/workflows/maintenance.yml .github/workflows/
+git add .github/workflows/
+git commit -m "Add Obsidian automation workflows"
+git push
+```
 
 ---
 
-## Workflow Structure
+## Workflow: ingest.yml
+
+**Location in vault repo**: `.github/workflows/ingest.yml`
+
+**Purpose**: Event-driven ingestion. Processes new notes from Capture, files approved proposals from Review Queue.
+
+### Structure
 
 ```yaml
 name: Obsidian Ingestion Pipeline
@@ -19,8 +35,10 @@ on:
   push:
     paths:
       - '00. Inbox/0. Capture/**/*.md'
+      - '00. Inbox/1. Review Queue/**/*.md'
     branches:
       - master
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -31,45 +49,88 @@ jobs:
     steps:
       - name: Checkout Vault
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run Librarian
+      - name: Run Librarian (Filer & Ingestion)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
         run: |
-          echo "📂 Starting Ingestion..."
-          python3 /home/runner/src/main.py
+          echo "📂 Starting Ingestion and Filer pipeline..."
+          python3 -m src_v2.entrypoints.ingest_runner
+
+      - name: Configure Git
+        run: |
+          git config user.name "Obsidian Librarian"
+          git config user.email "librarian@automation.local"
+
+      - name: Commit and push changes
+        run: |
+          git add -A
+          git diff --staged --quiet || git commit -m "🤖 Librarian: Vault organization [skip ci]"
+          git push
 ```
+
+### Triggers
+
+- **push**: Paths `00. Inbox/0. Capture/**/*.md` or `00. Inbox/1. Review Queue/**/*.md` on `master`
+- **workflow_dispatch**: Manual trigger from Actions tab
+
+### Key Points
+
+- **Run command**: `python3 -m src_v2.entrypoints.ingest_runner` (the application is pre-installed in the Docker container)
+- **Git**: Python does not perform Git operations. The workflow's "Configure Git" and "Commit and push changes" steps handle all Git operations.
+- **OBSIDIAN_VAULT_ROOT**: Set to `${{ github.workspace }}` (the checked-out vault)
 
 ---
 
-## Trigger Configuration
+## Workflow: maintenance.yml
 
-### Event: `push`
+**Location in vault repo**: `.github/workflows/maintenance.yml`
 
-The workflow triggers on Git push events.
+**Purpose**: Asynchronous automation (Night Watchman). Runs vault audit, Code Registry update, fix proposals.
 
-### Path Filter: `'00. Inbox/0. Capture/**/*.md'`
+### Structure
 
-**Purpose**: Only trigger when markdown files are added or modified in the Capture folder.
+```yaml
+name: Night Watchman Maintenance
 
-**Pattern Breakdown**:
-- `00. Inbox/0. Capture/` - Specific directory path
-- `**/*.md` - Recursive match for all `.md` files in subdirectories
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2:00 AM UTC
+  workflow_dispatch:
 
-**Examples of files that trigger**:
-- ✅ `00. Inbox/0. Capture/my-note.md`
-- ✅ `00. Inbox/0. Capture/subfolder/note.md`
-- ❌ `00. Inbox/1. Review Queue/note.md` (different folder)
-- ❌ `00. Inbox/0. Capture/file.txt` (not markdown)
+jobs:
+  maintain:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Vault
+        uses: actions/checkout@v4
 
-### Branch Filter: `master`
+      - name: Run Night Watchman (Registry & Audit)
+        env:
+          OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 -m src_v2.entrypoints.cron_runner
 
-**Purpose**: Only trigger on pushes to the `master` branch.
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "github-actions-runner"
+          git config user.email "runner@obsidian-note-manager.local"
+          git add .
+          git commit -m "chore: automated vault maintenance (Code Registry)" || exit 0
+          git push
+```
 
-**Note**: Change to `main` if your default branch is `main`.
+### Triggers
+
+- **schedule**: Daily at 02:00 UTC
+- **workflow_dispatch**: Manual trigger
+
+### Key Points
+
+- **Run command**: `python3 -m src_v2.entrypoints.cron_runner`
+- **Git**: Workflow steps perform commit and push (Python mutates files only)
 
 ---
 
@@ -82,101 +143,46 @@ permissions:
 
 **Purpose**: Allows the workflow to commit and push changes back to the repository.
 
-**Required For**: `GitOps.commit_and_push()` to work correctly.
-
-**Scope**: Repository-level permission (not organization-level).
+**Required For**: The workflow's Git steps to push successfully.
 
 ---
 
-## Job: `librarian`
+## Job Configuration
 
 ### Runner: `self-hosted`
 
-**Purpose**: Execute the job on the self-hosted runner (Raspberry Pi) instead of GitHub-hosted runners.
+**Purpose**: Execute the job on the self-hosted runner (e.g. Raspberry Pi in Docker) instead of GitHub-hosted runners.
 
-**Label Matching**: 
-- The runner must be registered with the `self-hosted` label
-- Additional labels (`docker`, `pi`) are optional but can be used for more specific targeting
-
-**Example with multiple labels**:
-```yaml
-runs-on: [self-hosted, docker]  # Optional: more specific targeting
-```
-
----
-
-## Steps
-
-### Step 1: Checkout Vault
-
-```yaml
-- name: Checkout Vault
-  uses: actions/checkout@v4
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**Purpose**: Check out the repository code so the workflow can access files.
-
-**What it does**:
-- Downloads the repository to `${{ github.workspace }}` (typically `_work/{repo}/{repo}/`)
-- Provides access to all files in the repository
-
-**Token Configuration**:
-- `token: ${{ secrets.GITHUB_TOKEN }}` - Uses GitHub's automatic token
-- Required for push permissions (needed for later Git operations)
-- Automatically provided by GitHub Actions
-
----
-
-### Step 2: Run Librarian
-
-```yaml
-- name: Run Librarian
-  env:
-    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-    OBSIDIAN_VAULT_ROOT: ${{ github.workspace }}
-  run: |
-    echo "📂 Starting Ingestion..."
-    python3 /home/runner/src/main.py
-```
-
-**Purpose**: Execute the Python application to process notes.
-
-**Environment Variables**:
-- `GEMINI_API_KEY`: Loaded from repository secrets
-  - Required by `LLMClient` to authenticate with Google Gemini API
-  - Must be set in: Repository → Settings → Secrets and variables → Actions
-- `OBSIDIAN_VAULT_ROOT`: Set to `github.workspace` (the checked-out repository path)
-  - Required by `main.py` to locate the vault root
-  - Used to find `00. Inbox/0. Capture/` and `00. Inbox/1. Review Queue/` folders
-
-**Command**: `python3 /home/runner/src/main.py`
-- **Important**: Uses absolute path `/home/runner/src/main.py`
-- The code is installed in the Docker container, not in the checked-out repository
-- Must match the container's file structure
+**Label Matching**: The runner must be registered with the `self-hosted` label.
 
 ---
 
 ## Workflow Execution Flow
 
-1. **User Action**: User creates/edits a note in `00. Inbox/0. Capture/` and pushes to GitHub
-2. **Trigger**: GitHub detects push matching path pattern `00. Inbox/0. Capture/**/*.md`
+### Ingestion (ingest.yml)
+
+1. **User Action**: User creates/edits a note in Capture or Review Queue and pushes to GitHub
+2. **Trigger**: GitHub detects push matching path pattern
 3. **Job Dispatch**: GitHub dispatches job to `self-hosted` runner
-4. **Runner Receives**: Self-hosted runner picks up the job
-5. **Checkout**: Runner checks out repository to workspace
-6. **Execute**: Runner runs `python3 /home/runner/src/main.py` with environment variables
-7. **Processing**: Python app scans, processes, and moves notes
-8. **Commit**: Git operations commit and push changes
-9. **Completion**: Workflow completes, processed notes are in `1. Review Queue/`
+4. **Checkout**: Runner checks out vault to workspace
+5. **Execute**: Runner runs `python3 -m src_v2.entrypoints.ingest_runner`
+6. **Processing**: Python app files approved proposals, processes new notes, writes to Review Queue
+7. **Git**: Workflow steps run `git add`, `git commit`, `git push`
+8. **Completion**: Workflow completes
+
+### Maintenance (maintenance.yml)
+
+1. **Trigger**: Scheduled cron or manual dispatch
+2. **Checkout**: Runner checks out vault
+3. **Execute**: Runner runs `python3 -m src_v2.entrypoints.cron_runner`
+4. **Processing**: Python app scans vault, updates Code Registry, generates fix proposals
+5. **Git**: Workflow steps run `git add`, `git commit`, `git push`
 
 ---
 
 ## Workflow Secrets
 
-### Required Secrets
-
-#### `GEMINI_API_KEY`
+### GEMINI_API_KEY
 
 **Purpose**: Authenticate with Google Gemini API
 
@@ -185,23 +191,6 @@ runs-on: [self-hosted, docker]  # Optional: more specific targeting
 2. Click "New repository secret"
 3. Name: `GEMINI_API_KEY`
 4. Value: Your Google Gemini API key (starts with `AIza...`)
-5. Click "Add secret"
-
-**Used In**: `Run Librarian` step environment variables
-
-**Visibility**: Only accessible within workflows (never exposed in logs)
-
----
-
-## Workflow Variables
-
-### `${{ github.workspace }}`
-
-**Purpose**: Path to the checked-out repository on the runner
-
-**Value**: Typically `_work/{repo-owner}/{repo-name}/{repo-name}/`
-
-**Used For**: Setting `OBSIDIAN_VAULT_ROOT` to tell the Python app where the vault is located
 
 ---
 
@@ -210,146 +199,32 @@ runs-on: [self-hosted, docker]  # Optional: more specific targeting
 ### Workflow Not Triggering
 
 **Check**:
-1. ✅ Workflow file exists: `.github/workflows/ingest.yml` in obsidian-notes repository
-2. ✅ Branch matches: File pushed to `master` branch
-3. ✅ Path matches: File path exactly matches `00. Inbox/0. Capture/**/*.md`
-4. ✅ File extension: File has `.md` extension
-
-**Debug**:
-- Check Actions tab: Even if not triggered, see if workflow appears
-- Check branch: Ensure workflow file exists on `master` branch
-
----
+1. Workflow file exists in **obsidian-notes** repo: `.github/workflows/ingest.yml` or `maintenance.yml`
+2. Branch matches (e.g. `master`)
+3. Path matches (for ingest: `00. Inbox/0. Capture/**/*.md` or `00. Inbox/1. Review Queue/**/*.md`)
+4. File extension: `.md`
 
 ### Workflow Fails Immediately
 
 **Possible Causes**:
 1. **Runner offline**: Check runner status in Settings → Actions → Runners
 2. **Missing secrets**: Verify `GEMINI_API_KEY` secret exists
-3. **Wrong path**: Ensure Python path is `/home/runner/src/main.py`
-
-**Debug**:
-```bash
-# Check runner status
-docker compose logs librarian-runner | grep -i "listening\|error"
-```
-
----
+3. **Wrong command**: Ensure workflow uses `python3 -m src_v2.entrypoints.ingest_runner` or `python3 -m src_v2.entrypoints.cron_runner` (not `src/main.py`)
 
 ### Workflow Succeeds But No Changes
 
 **Possible Causes**:
 1. **No files in Capture**: Verify files exist in `00. Inbox/0. Capture/`
-2. **Git push failed**: Check workflow logs for Git errors
+2. **Git push failed**: Check workflow logs for the "Commit and push" step
 3. **Processing failed silently**: Check workflow logs for Python errors
 
-**Debug**:
-- Review workflow logs in Actions tab
-- Check Git push step output
-- Verify files were moved to `1. Review Queue/`
-
----
-
-## Workflow Best Practices
-
-### 1. Path-Specific Triggers
-
-**Benefit**: Only runs when relevant files change, saving runner resources
-
-**Current**: Triggers only on `00. Inbox/0. Capture/**/*.md`
-
-### 2. Self-Hosted Runners
-
-**Benefit**: 
-- No GitHub Actions minutes usage
-- Full control over execution environment
-- Access to local resources if needed
-
-**Trade-off**: 
-- Requires maintaining infrastructure
-- Less isolation than GitHub-hosted runners
-
-### 3. Environment Variables
-
-**Best Practice**: Never hardcode secrets in workflow files
-
-**Current**: Uses `${{ secrets.GEMINI_API_KEY }}` for sensitive data
-
-### 4. Permission Scope
-
-**Principle**: Grant minimum required permissions
-
-**Current**: `contents: write` - Required for Git push, but still scoped to repository
-
----
-
-## Advanced Workflow Configurations
-
-### Adding Manual Trigger
-
-To allow manual workflow execution:
-
-```yaml
-on:
-  push:
-    paths:
-      - '00. Inbox/0. Capture/**/*.md'
-    branches:
-      - master
-  workflow_dispatch:  # Add this
-```
-
-Then users can trigger manually from Actions tab.
-
----
-
-### Multiple Branches
-
-To trigger on multiple branches:
-
-```yaml
-branches:
-  - master
-  - main
-  - develop
-```
-
----
-
-### Excluding Certain Paths
-
-To skip processing certain files:
-
-```yaml
-on:
-  push:
-    paths:
-      - '00. Inbox/0. Capture/**/*.md'
-    paths-ignore:
-      - '00. Inbox/0. Capture/**/*test*.md'
-```
-
----
-
-## Workflow Monitoring
-
-### Viewing Workflow Runs
-
-1. Go to: Repository → Actions tab
-2. Click on workflow name: "Obsidian Ingestion Pipeline"
-3. Click on specific run to see logs
-
-### Workflow Status
-
-- 🟢 **Success**: Workflow completed successfully
-- 🔴 **Failed**: Workflow encountered an error
-- 🟡 **Queued**: Waiting for runner to become available
-- 🔵 **In Progress**: Currently executing
+See [Troubleshooting Guide](./troubleshooting.md) for detailed diagnostics.
 
 ---
 
 ## Related Documentation
 
-- [Architecture Overview](./architecture.md) - System architecture
+- [Architecture Overview](./architecture.md) - System architecture and GitOps boundary
 - [Setup Guide](./setup.md) - How to set up the workflow
+- [Ingest Deployment](./ingest-deployment.md) - Deployment steps for ingestion
 - [Troubleshooting](./troubleshooting.md) - Common workflow issues
