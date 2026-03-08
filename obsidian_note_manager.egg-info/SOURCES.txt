@@ -18,6 +18,8 @@ src_v2/core/domain/models.py
 src_v2/core/interfaces/__init__.py
 src_v2/core/interfaces/ports.py
 src_v2/entrypoints/__init__.py
+src_v2/entrypoints/chainlit_app.py
+src_v2/entrypoints/chainlit_helpers.py
 src_v2/entrypoints/cli.py
 src_v2/entrypoints/cron_runner.py
 src_v2/entrypoints/ingest_runner.py
