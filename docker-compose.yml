@@ -4,14 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        RUNNER_ARCH: arm64 
+        RUNNER_ARCH: x64
     image: obs-librarian-runner
     environment:
       # Pass these in a .env file
       REPO_URL: "https://github.com/christopherjohnkelly/obsidian-notes"
       GITHUB_PAT: "${GITHUB_PAT}"
       GITHUB_TOKEN: "${GITHUB_RUNNER_TOKEN}"  # Legacy: kept for backward compatibility
-      RUNNER_NAME: "pi-librarian"
+      RUNNER_NAME: "ubuntu-librarian"
       GEMINI_API_KEY: "${GEMINI_API_KEY}"
       OBSIDIAN_AREAS_FOLDER: "${OBSIDIAN_AREAS_FOLDER}"
       OBSIDIAN_PROJECTS_FOLDER: "${OBSIDIAN_PROJECTS_FOLDER}"
