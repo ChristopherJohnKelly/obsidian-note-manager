@@ -8,6 +8,9 @@ on:
 jobs:
   maintain:
     runs-on: self-hosted # Targets your Raspberry Pi
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout Vault
         uses: actions/checkout@v4
