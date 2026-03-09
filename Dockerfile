@@ -13,11 +13,11 @@ RUN useradd -m runner
 USER runner
 WORKDIR /home/runner
 
-# 3. Install GH Runner (ARM64 for Raspberry Pi)
+# 3. Install GH Runner (x64 for Ubuntu Proxmox VM)
 # Note: Changing architecture to 'x64' if testing on Intel/AMD Mac
 # Updated to 2.331.0 to match auto-update version (prevents update issues)
 ARG RUNNER_VERSION="2.331.0"
-ARG RUNNER_ARCH="arm64" 
+ARG RUNNER_ARCH="x64" 
 
 RUN curl -o actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz -L \
     https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz \
