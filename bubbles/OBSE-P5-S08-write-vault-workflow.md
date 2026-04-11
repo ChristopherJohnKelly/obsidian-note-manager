@@ -1,0 +1,196 @@
+---
+type: bubble
+status: pending
+step_id: S08
+parent_trd: "[[TRD - Temporal SOA Migration]]"
+tags: [ type/bubble ]
+---
+
+## LLM Instructions
+
+**Role:** You are a Senior Python Engineer implementing the serialised write handler for the vault.
+**Objective:** Implement `WriteVaultWorkflow` on the `vault-mutation-queue` with `max_concurrent_activities=1`. This is the critical concurrency boundary — all vault mutations must funnel through this single queue. Prove the sequential guarantee with a load test.
+**Constraints:**
+- Python 3.12
+- The Worker for this workflow is configured with `max_concurrent_workflow_tasks=1` and `max_concurrent_activities=1`
+- Workflow code is deterministic — no direct file I/O in `@workflow.run`
+- Must always `git_pull` before writing and `git_commit`+`git_push` after
+- Operations supported in this bubble: `save_note` and `delete_note` only
+
+---
+
+## 1. Context
+
+**Feature:** TRD Section 4 (Child Workflows — WriteVaultWorkflow), Section 4.5 (Queue Configuration)
+**Depends On:** S04 (Vault I/O Activities), S05 (Git Operations Activities)
+**Current State:** ReadVaultWorkflow implemented (S07). All Activities available.
+**Target State:** `WriteVaultWorkflow` implemented on a dedicated single-concurrency queue, with a passing load test proving sequential execution under parallel demand.
+
+---
+
+## 2. Input
+
+- `apps/vault-worker/activities/vault_io.py`
+- `apps/vault-worker/activities/git_ops.py`
+- `packages/shared/models.py` — `VaultNote`
+- `packages/shared/workflow_names.py` — `QUEUE_MUTATION`
+
+---
+
+## 3. Required Output
+
+- [ ] `apps/vault-worker/workflows/write_vault.py` — `WriteVaultWorkflow`
+- [ ] `tests/e2e/test_write_vault_workflow.py` — including sequential-guarantee load test
+
+**Workflow interface:**
+
+```python
+@dataclass
+class WriteOperation:
+    op: Literal["save", "delete"]
+    path: str
+    note: VaultNote | None = None  # required for "save"
+
+@dataclass
+class WriteVaultInput:
+    vault_path: str
+    operations: list[WriteOperation]
+    commit_message: str
+
+@workflow.defn
+class WriteVaultWorkflow:
+    @workflow.run
+    async def run(self, input: WriteVaultInput) -> str: ...  # returns commit SHA
+```
+
+---
+
+## 4. Acceptance Criteria
+
+- [ ] A `save` operation writes the file; a subsequent `read_note` Activity call returns the saved content
+- [ ] A `delete` operation removes the file; a subsequent `read_note` returns `None`
+- [ ] `git_pull` is always called before write operations
+- [ ] `git_commit` and `git_push` are always called after all operations complete
+- [ ] **Sequential guarantee:** Fire 10 simultaneous `WriteVaultWorkflow` requests using a timed mock `save_note` activity (sleeps 0.1s). Capture total elapsed time with `time.monotonic()` *outside* `asyncio.gather()`. Assert elapsed > 0.9s — if the queue serialises correctly, 10 × 0.1s ≈ 1.0s; if they run in parallel (broken), elapsed ≈ 0.1s. Also assert all 10 complete without error.
+- [ ] An empty `operations` list results in no file changes and no git commit
+
+---
+
+## 5. Scope Boundary
+
+**May modify:** `apps/vault-worker/workflows/write_vault.py`, `tests/e2e/test_write_vault_workflow.py`, `apps/vault-worker/worker.py` (to register the mutation-queue worker)
+**Must not modify:** `apps/vault-worker/workflows/read_vault.py`, Activity files, `packages/shared/`
+
+---
+
+## 6. TDD Constraints
+
+- Write the sequential-guarantee load test FIRST — before any implementation. It will fail immediately (workflow not defined) but the test logic must be correct
+- The load test is the most important test in this bubble; do not defer it
+- Commit the test before implementation so the failure is captured in git history
+
+---
+
+## 7. Step-by-Step Plan
+
+1. Write the full `test_write_vault_workflow.py` including the 10-concurrent-writes load test. Commit (failing).
+2. Define `WriteOperation`, `WriteVaultInput` dataclasses in `apps/vault-worker/workflows/write_vault.py`.
+3. Implement `WriteVaultWorkflow.run`: pull → iterate operations → push → return SHA.
+4. In `apps/vault-worker/worker.py`, register a second `Worker` instance on `QUEUE_MUTATION` with `max_concurrent_workflow_tasks=1, max_concurrent_activities=1`.
+5. Run individual save/delete tests — pass.
+6. Run the 10-concurrent-writes load test — pass and verify serialisation.
+7. Commit.
+
+---
+
+## 8. Reference Material
+
+### Mutation-queue Worker registration
+
+```python
+# apps/vault-worker/worker.py
+write_worker = Worker(
+    client,
+    task_queue=QUEUE_MUTATION,
+    workflows=[WriteVaultWorkflow],
+    activities=[save_note, delete_note, git_pull, git_commit, git_push],
+    max_concurrent_workflow_tasks=1,
+    max_concurrent_activities=1,
+)
+```
+
+### Sequential guarantee load test
+
+The serialisation test uses mock activities registered under the **same names** as the real ones (via `@activity.defn(name=...)`). `WriteVaultWorkflow` calls activities by name, so it picks up the mocks transparently — no changes to the workflow code.
+
+`t0` is captured **outside** `asyncio.gather()` to measure true wall-clock elapsed time across all 10 executions. If the queue serialises correctly, elapsed ≈ 10 × 0.1s = 1.0s. If Temporal runs them in parallel (broken), elapsed ≈ 0.1s.
+
+```python
+import asyncio, time
+from datetime import timedelta
+from pathlib import Path
+from temporalio import activity
+from packages.shared.models import VaultNote, Frontmatter
+from packages.shared.workflow_names import QUEUE_MUTATION
+
+# Mock activities with the same registered names as the real implementations.
+# WriteVaultWorkflow dispatches by name, so these are picked up transparently.
+
+@activity.defn(name="save_note")
+def timed_save_note(vault_root: str, path: str, note: VaultNote) -> None:
+    """Sleeps 0.1s to make serialisation mathematically measurable."""
+    time.sleep(0.1)
+
+@activity.defn(name="git_pull")
+def noop_git_pull(vault_path: str) -> None: pass
+
+@activity.defn(name="git_commit")
+def noop_git_commit(vault_path: str, message: str) -> str: return "fake-sha"
+
+@activity.defn(name="git_push")
+def noop_git_push(vault_path: str) -> None: pass
+
+SERIALISATION_TEST_ACTIVITIES = [
+    timed_save_note, noop_git_pull, noop_git_commit, noop_git_push
+]
+
+async def test_sequential_writes_serialise_under_load(temporal_client, tmp_path):
+    """Prove the vault-mutation-queue serialises concurrent WriteVaultWorkflow requests.
+
+    Each write includes a 0.1s timed mock activity.
+    Serial execution (correct): total elapsed ≥ 1.0s
+    Parallel execution (broken): total elapsed ≈ 0.1s
+    """
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    note = VaultNote(path=Path("note.md"), frontmatter=Frontmatter(title="T"), body="b")
+
+    async with Worker(temporal_client, task_queue=QUEUE_MUTATION,
+                      workflows=[WriteVaultWorkflow],
+                      activities=SERIALISATION_TEST_ACTIVITIES,
+                      max_concurrent_workflow_tasks=1,
+                      max_concurrent_activities=1):
+
+        t0 = time.monotonic()  # Outside gather — measures true total wall-clock time
+        await asyncio.gather(*[
+            temporal_client.execute_workflow(
+                WriteVaultWorkflow.run,
+                WriteVaultInput(
+                    vault_path=str(vault),
+                    operations=[WriteOperation(op="save", path=f"note_{i}.md", note=note)],
+                    commit_message=f"write {i}",
+                ),
+                id=f"write-serial-{i}",
+                task_queue=QUEUE_MUTATION,
+            )
+            for i in range(10)
+        ])
+        elapsed = time.monotonic() - t0
+
+    # Serial: ≥ 1.0s. Parallel (broken queue): ≈ 0.1s.
+    assert elapsed > 0.9, (
+        f"Writes appear to have run in parallel (elapsed {elapsed:.2f}s). "
+        "Check vault-mutation-queue max_concurrent_workflow_tasks=1 is set."
+    )
+```
