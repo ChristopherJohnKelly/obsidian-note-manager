@@ -58,6 +58,37 @@ via `workflow.get_external_workflow_handle(VAULT_MANAGER_ID)`.
 `apps/copilot-ui/app.py` Chainlit lifecycle hooks are untestable. Add to `[tool.coverage.run] omit`
 in `pyproject.toml` before the 90% threshold check.
 
+## Git Protocol
+
+PLAN.md is the state machine. All reads and writes to PLAN.md must happen
+while checked out on the feature branch. Follow this sequence precisely:
+
+### Claiming a step
+1. git checkout feat/OBSE-P5-temporal-soa-migration
+2. git pull origin feat/OBSE-P5-temporal-soa-migration
+3. Edit PLAN.md — set status=in-progress, Claimed By=ralph@{timestamp}
+4. git add PLAN.md && git commit -m "chore: claim {SXX} [ralph]"
+5. git push origin feat/OBSE-P5-temporal-soa-migration
+   ← push BEFORE creating the step branch
+6. git checkout -b step/OBSE-P5-{SXX}-{name}
+   ← branch from the claim commit; PLAN.md on this branch is intentionally stale
+
+### After implementation — opening PR
+1. git push origin step/OBSE-P5-{SXX}-{name}
+2. gh pr create --base feat/OBSE-P5-temporal-soa-migration --title "[OBSE-P5-{SXX}] {name}" --body "Closes step {SXX}"
+3. git checkout feat/OBSE-P5-temporal-soa-migration
+4. git pull origin feat/OBSE-P5-temporal-soa-migration
+5. Edit PLAN.md — set status=review, PR=#N
+6. git add PLAN.md && git commit -m "chore: {SXX} open for review [ralph]"
+7. git push origin feat/OBSE-P5-temporal-soa-migration
+
+### On failure
+1. git checkout feat/OBSE-P5-temporal-soa-migration
+2. git pull origin feat/OBSE-P5-temporal-soa-migration
+3. Write FAILURE-{SXX}.md, edit PLAN.md
+4. git add -A && git commit -m "chore: {SXX} failed attempt {N} [ralph]"
+5. git push origin feat/OBSE-P5-temporal-soa-migration
+
 ## Per-Step Context Loading
 
 At the start of each step, read:

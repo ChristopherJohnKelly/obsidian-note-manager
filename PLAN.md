@@ -1,7 +1,7 @@
 # PLAN.md — OBSE-P5 Temporal SOA Migration
 
 ## Feature Branch
-`feat/OBSE-P5-temporal-soa-migration`
+feat/OBSE-P5-temporal-soa-migration
 
 ## Steps
 
