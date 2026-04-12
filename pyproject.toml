@@ -38,9 +38,9 @@ pythonpath = ["."]
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["src_v2"]
-omit = ["*/tests/*", "*/__pycache__/*"]
+source = ["apps", "packages"]
+omit = ["*/tests/*", "*/__pycache__/*", "apps/copilot-ui/app.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "def __repr__"]
-fail_under = 80
+fail_under = 90
