@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "obsidian-copilot-ui"
+version = "0.1.0"
+description = "Chainlit UI for Obsidian copilot (Temporal client only)"
+requires-python = ">=3.12"
+dependencies = [
+    "obsidian-shared",
+    "temporalio",
+    "chainlit>=1.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["apps/copilot-ui"]
