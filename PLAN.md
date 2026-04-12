@@ -7,7 +7,7 @@ feat/OBSE-P5-temporal-soa-migration
 
 | ID  | Name                        | Branch                                         | Depends On      | Status  | PR  | Attempts | Claimed By |
 |-----|-----------------------------|------------------------------------------------|-----------------|---------|-----|----------|------------|
-| S01 | Monorepo Scaffolding | step/OBSE-P5-S01-monorepo-scaffolding | — | review | 19 | 5 | ralph@2026-04-12 |
+| S01 | Monorepo Scaffolding | step/OBSE-P5-S01-monorepo-scaffolding | — | queued | 19 | 6 |  |
 | S02 | Dummy Vault and Fake LLM    | step/OBSE-P5-S02-dummy-vault-fake-llm          | S01             | queued  | —   | 0        |            |
 | S03 | Temporal Test Environment   | step/OBSE-P5-S03-temporal-test-environment     | S01,S02         | queued  | —   | 0        |            |
 | S04 | Vault IO Activities         | step/OBSE-P5-S04-vault-io-activities           | S03             | queued  | —   | 0        |            |
