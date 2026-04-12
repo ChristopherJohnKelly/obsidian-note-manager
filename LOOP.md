@@ -89,6 +89,31 @@ while checked out on the feature branch. Follow this sequence precisely:
 4. git add -A && git commit -m "chore: {SXX} failed attempt {N} [ralph]"
 5. git push origin feat/OBSE-P5-temporal-soa-migration
 
+## Failure Handling
+
+### When cc-obsidian rejects a step
+cc-obsidian writes the rejection reason to PLAN.md but cannot post PR comments
+on single-account repos. To ensure Ralph receives rejection context, cc-obsidian
+will write a `FAILURE-S{XX}.md` file to the feature branch on rejection.
+
+### At the start of each step attempt
+Before beginning implementation, check for a prior failure file:
+1. `git checkout feat/OBSE-P5-temporal-soa-migration`
+2. Check if `FAILURE-S{XX}.md` exists on the feature branch
+3. If it exists, read it carefully — it contains the specific rejection reason
+   from the previous attempt
+4. Delete it before starting the new attempt:
+   `git rm FAILURE-S{XX}.md && git commit -m "chore: clear S{XX} failure record [ralph]"`
+5. Use the failure context to guide the fix
+
+### When Ralph exhausts attempts (status=failed)
+Write `HALT.md` to the feature branch with:
+- The step ID and name
+- All failure reasons across attempts (from FAILURE-S{XX}.md history)
+- Your analysis of why the step cannot be completed as specified
+- Suggested resolutions
+Then stop the loop.
+
 ## Per-Step Context Loading
 
 At the start of each step, read:
