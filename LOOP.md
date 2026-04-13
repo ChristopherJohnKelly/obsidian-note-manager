@@ -16,7 +16,7 @@ See `PLAN.md` on this branch.
 - On COMPLETE: write `COMPLETE.md`, stop loop
 
 ## Test Command
-pytest --cov=apps --cov=packages --cov-fail-under=90
+/home/claude/.local/bin/pytest --cov=apps --cov=packages --cov-fail-under=90
 
 ## Context
 - TRD: `TRD.md` (in repo root on feature branch)
