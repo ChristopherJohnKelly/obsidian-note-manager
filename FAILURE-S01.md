@@ -1,11 +1,11 @@
-# FAILURE-S01 — 2026-04-13T22:01:06Z
+# FAILURE-S01 — 2026-04-13T22:13:28Z
 
 ## Rejection Reason
-[2026-04-13T22:00:58Z] [INFO ] Running tests in worktree: /home/claude/.local/bin/pytest --cov=apps --cov=packages --cov-fail-under=90
+[2026-04-13T22:13:19Z] [INFO ] Running tests in worktree: /home/claude/.local/bin/pytest --cov=apps --cov=packages --cov-fail-under=90
 FAIL:ImportError while importing test module '/tmp/cc-obsidian-verify/S01/tests/unit/test_assistant.py'.;E   ModuleNotFoundError: No module named 'pydantic_settings';ImportError while importing test module '/tmp/cc-obsidian-verify/S01/tests/unit/test_cron_runner.py'.;E   ModuleNotFoundError: No module named 'pydantic_settings';ImportError while importing test module '/tmp/cc-obsidian-verify/S01/tests/unit/test_ingest_runner.py'.;
 
 ## Attempt
-3
+2
 
 ## What to fix
 Address the rejection reason above before re-attempting this step.
