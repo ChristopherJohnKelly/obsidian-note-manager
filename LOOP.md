@@ -123,3 +123,7 @@ At the start of each step, read:
 4. `bubbles/OBSE-P5-S{XX}-{name}.md` — the step's acceptance criteria, scope, and TDD constraints
 
 Do not read other bubbles unless a dependency question arises.
+
+**8. Ignore pip artefacts.**
+Add `=*` to `.gitignore` at repo root. pip can create files named `=2.0` etc.
+when run incorrectly (`pip install =2.0` instead of `pip install package==2.0`).
