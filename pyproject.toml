@@ -36,6 +36,7 @@ obsidian = "src_v2.entrypoints.cli:main"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+addopts = "--cov=apps --cov=packages --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["apps", "packages"]
