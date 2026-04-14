@@ -1,22 +1,52 @@
-"""Pytest fixtures for B4 test suite."""
+"""Pytest fixtures for test suite."""
 
 from pathlib import Path
 
 import pytest
 
-from src_v2.core.domain.models import CodeRegistryEntry, Frontmatter, Note, ValidationResult
-from src_v2.infrastructure.testing.adapters import FakeLLM, MockVaultAdapter
+
+# Lazy imports: only available when src_v2 dependencies are installed
+def _FakeLLM():
+    from src_v2.infrastructure.testing.adapters import FakeLLM
+    return FakeLLM
+
+
+def _MockVaultAdapter():
+    from src_v2.infrastructure.testing.adapters import MockVaultAdapter
+    return MockVaultAdapter
+
+
+def _Note():
+    from src_v2.core.domain.models import Note
+    return Note
+
+
+def _Frontmatter():
+    from src_v2.core.domain.models import Frontmatter
+    return Frontmatter
+
+
+def _CodeRegistryEntry():
+    from src_v2.core.domain.models import CodeRegistryEntry
+    return CodeRegistryEntry
+
+
+def _ValidationResult():
+    from src_v2.core.domain.models import ValidationResult
+    return ValidationResult
 
 
 @pytest.fixture
-def fake_llm() -> FakeLLM:
+def fake_llm():
     """LLM mock that echoes back prompts (no API calls)."""
-    return FakeLLM()
+    return _FakeLLM()()
 
 
 @pytest.fixture
-def sample_note() -> Note:
+def sample_note():
     """Valid note with frontmatter and body for reuse."""
+    Note = _Note()
+    Frontmatter = _Frontmatter()
     return Note(
         path=Path("20. Projects/Pepsi/Pepsi Project.md"),
         frontmatter=Frontmatter(
@@ -31,7 +61,7 @@ def sample_note() -> Note:
 
 
 @pytest.fixture
-def populated_vault() -> MockVaultAdapter:
+def populated_vault():
     """
     MockVaultAdapter pre-loaded with 1 valid project and 1 invalid (dirty) note.
 
@@ -39,6 +69,12 @@ def populated_vault() -> MockVaultAdapter:
     - Scan results: 1 dirty file (dirty.md, missing aliases/tags)
     - Both notes are in files so get_note works for generate_fix
     """
+    Note = _Note()
+    Frontmatter = _Frontmatter()
+    MockVaultAdapter = _MockVaultAdapter()
+    ValidationResult = _ValidationResult()
+    CodeRegistryEntry = _CodeRegistryEntry()
+
     dirty_path = Path("20. Projects/Pepsi/dirty.md")
     dirty_note = Note(
         path=dirty_path,

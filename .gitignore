@@ -25,4 +25,4 @@ htmlcov/
 
 # venv
 venv/
-.venv/
+.venv/=*
