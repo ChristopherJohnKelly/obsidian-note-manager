@@ -9,7 +9,7 @@ feat/OBSE-P5-temporal-soa-migration
 |-----|-----------------------------|------------------------------------------------|-----------------|---------|-----|----------|------------|
 | S01 | Monorepo Scaffolding | step/OBSE-P5-S01-monorepo-scaffolding | — | done | #19 | 1 |  |
 | S02 | Dummy Vault and Fake LLM | step/OBSE-P5-S02-dummy-vault-fake-llm | S01 | done | #20 | 2 |  |
-| S03 | Temporal Test Environment | step/OBSE-P5-S03-temporal-test-environment | S01,S02 | queued | #21 | 5 |  |
+| S03 | Temporal Test Environment | step/OBSE-P5-S03-temporal-test-environment | S01,S02 | queued | #21 | 1 |  |
 | S04 | Vault IO Activities         | step/OBSE-P5-S04-vault-io-activities           | S03             | queued  | —   | 0        |            |
 | S05 | Git Operations Activities   | step/OBSE-P5-S05-git-operations-activities     | S03             | queued  | —   | 0        |            |
 | S06 | LLM Generation Activities   | step/OBSE-P5-S06-llm-generation-activities     | S03,S04         | queued  | —   | 0        |            |
