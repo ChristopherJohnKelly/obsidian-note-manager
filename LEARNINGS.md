@@ -17,3 +17,11 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Sync `def` ping_activity with `activity_executor=ThreadPoolExecutor(max_workers=2)` in Worker is the correct pattern
 - Full test suite (161 tests) hits 100% coverage on packages/shared; running only smoke test gives 0% (not enough)
 - `asyncio_mode = "auto"` in pyproject.toml is required for session-scoped async fixtures to work
+
+## S04 — Vault IO Activities — 2026-04-14
+- Python package for `apps/vault-worker` must be `apps/vault_worker/` (underscore, not hyphen) — Python can't import hyphenated directory names; the hyphened dir is for Docker context only
+- `from packages.shared.models import ...` is the correct local import path (not `from shared.models`) — the editable install `.pth` adds `packages/shared` to sys.path, not `packages`
+- `VaultNote.path: Path` is not JSON serializable with Temporal's default converter — for integration tests returning Pydantic models with Path fields, use `list[str]` return activities (e.g., `list_notes_in`) to avoid needing `pydantic_data_converter` on the Worker
+- Rule 2 (code mismatch) must be skipped when Rule 3 (bad title) fires on the same file — otherwise generic-named files get double-penalised (30→80)
+- `Worker` in Temporal SDK v1.x takes no `data_converter` kwarg — the data converter is set on the `Client`, not the `Worker`
+- Full test suite (184 tests) hits 91.3% total coverage; running only test_vault_io.py gives 83% because `workflow_names.py` misses its coverage from other tests
