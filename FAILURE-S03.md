@@ -1,10 +1,10 @@
-# FAILURE-S03 — 2026-04-14T13:47:57Z
+# FAILURE-S03 — 2026-04-14T14:01:27Z
 
 ## Rejection Reason
-fail_under=90 causes pytest to exit with error (should be 0 per bubble plan); tests/unit/conftest.py modified outside declared scope
+pytest tests/e2e/test_smoke.py exits with code 1 — coverage fail_under=90 triggers when running smoke test alone (0% coverage of packages/shared), violating acceptance criterion #1
 
 ## Attempt
-1
+3
 
 ## What to fix
 Address the rejection reason above before re-attempting this step.
