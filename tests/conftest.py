@@ -1,9 +1,44 @@
-"""Pytest fixtures for test suite."""
+"""Shared pytest fixtures for the Temporal SOA test suite."""
 
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
+from temporalio.client import Client
+from temporalio.testing import WorkflowEnvironment
 
+from tests.mocks.fake_llm import FakeLLMProvider
+
+
+# ---------------------------------------------------------------------------
+# Temporal fixtures (S03)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def dummy_vault_path() -> Path:
+    return Path(__file__).parent / "fixtures" / "dummy_vault"
+
+
+@pytest.fixture(scope="session")
+def fake_llm() -> FakeLLMProvider:
+    return FakeLLMProvider()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def temporal_env():
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        yield env
+
+
+@pytest_asyncio.fixture(scope="session")
+async def temporal_client(temporal_env: WorkflowEnvironment) -> Client:
+    return temporal_env.client
+
+
+# ---------------------------------------------------------------------------
+# Legacy src_v2 fixtures (kept for pre-migration unit tests)
+# ---------------------------------------------------------------------------
 
 # Lazy imports: only available when src_v2 dependencies are installed
 def _FakeLLM():
@@ -34,12 +69,6 @@ def _CodeRegistryEntry():
 def _ValidationResult():
     from src_v2.core.domain.models import ValidationResult
     return ValidationResult
-
-
-@pytest.fixture
-def fake_llm():
-    """LLM mock that echoes back prompts (no API calls)."""
-    return _FakeLLM()()
 
 
 @pytest.fixture
