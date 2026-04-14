@@ -25,3 +25,10 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Rule 2 (code mismatch) must be skipped when Rule 3 (bad title) fires on the same file — otherwise generic-named files get double-penalised (30→80)
 - `Worker` in Temporal SDK v1.x takes no `data_converter` kwarg — the data converter is set on the `Client`, not the `Worker`
 - Full test suite (184 tests) hits 91.3% total coverage; running only test_vault_io.py gives 83% because `workflow_names.py` misses its coverage from other tests
+
+## Persistent pattern — gitignore corruption
+- NEVER modify existing .gitignore entries — only append new lines
+- The `=*` pattern must be added as a NEW line, not appended to an existing entry
+- Correct: add a blank line then `=*` at the end of .gitignore
+- Wrong: change `.venv/` to `.venv/=*`
+- This mistake has occurred on S01 and S03 — treat .gitignore as append-only
