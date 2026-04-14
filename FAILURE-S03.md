@@ -1,10 +1,10 @@
-# FAILURE-S03 — 2026-04-14T14:01:27Z
+# FAILURE-S03 — 2026-04-14T15:16:47Z
 
 ## Rejection Reason
-pytest tests/e2e/test_smoke.py exits with code 1 — coverage fail_under=90 triggers when running smoke test alone (0% coverage of packages/shared), violating acceptance criterion #1
+tests/unit/conftest.py created outside declared scope boundary (not in "may modify" allowlist)
 
 ## Attempt
-3
+1
 
 ## What to fix
 Address the rejection reason above before re-attempting this step.
