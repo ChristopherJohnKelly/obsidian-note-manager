@@ -38,3 +38,10 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S05 rejection — 2026-04-16T17:17:51Z
 - REJECTION: Code quality (critical): git_push silently succeeds on rejected pushes (no exception raised, PushInfo error flags ignored) — potential data loss when workflow believes unpushed commits are safely on remote
+## S05 — Git Operations Activities — 2026-04-14
+- All four git Activities (clone/pull/commit/push) must be synchronous `def` — GitPython is blocking and `def` causes Temporal to run in a ThreadPoolExecutor
+- PAT injection only applies to `https://` URLs; local bare repo paths used in tests are passed through unchanged — handle this branch in git_clone
+- `monkeypatch.setattr` on a class method (`Repo.clone_from`) replaces the global reference; calling `Repo.clone_from` inside the fake creates infinite recursion — save `original_clone_from = Repo.clone_from` before patching
+- `git_commit` should call `repo.is_dirty(untracked_files=True)` before staging to detect nothing-to-commit, then use `repo.git.add(A=True)` to stage all changes
+- Running only the git_ops tests shows 27% coverage (packages/shared not exercised) — always run the full suite for the threshold check
+- S04 (vault_io.py) was implemented on a parallel branch; S05 branch starts clean — must create `apps/vault_worker/__init__.py` and `apps/vault_worker/activities/__init__.py` from scratch
