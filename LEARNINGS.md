@@ -45,3 +45,8 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - `git_commit` should call `repo.is_dirty(untracked_files=True)` before staging to detect nothing-to-commit, then use `repo.git.add(A=True)` to stage all changes
 - Running only the git_ops tests shows 27% coverage (packages/shared not exercised) — always run the full suite for the threshold check
 - S04 (vault_io.py) was implemented on a parallel branch; S05 branch starts clean — must create `apps/vault_worker/__init__.py` and `apps/vault_worker/activities/__init__.py` from scratch
+
+## S05 — Git Operations Activities — 2026-04-15
+- Implementation already complete; verified all acceptance criteria and coverage threshold
+- Local bare repo fixture provides hermetic testing without network calls
+- PAT injection only for https:// URLs; local paths unchanged
