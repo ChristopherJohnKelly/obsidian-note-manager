@@ -32,3 +32,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Correct: add a blank line then `=*` at the end of .gitignore
 - Wrong: change `.venv/` to `.venv/=*`
 - This mistake has occurred on S01 and S03 — treat .gitignore as append-only
+
+## S05 rejection — 2026-04-15T20:09:51Z
+- REJECTION: Code quality (critical): git_push silently swallows push rejection (data loss); git_pull ignores merge conflicts (data corruption); PAT credential leaks in GitPython exception messages
