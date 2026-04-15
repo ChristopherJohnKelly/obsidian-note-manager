@@ -100,3 +100,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - GeminiProvider requires `# pragma: no cover` (spec explicitly says no unit tests for real adapter); this lifts total coverage above 90%
 - Retry policy test imports LLM_RETRY_POLICY inside the @workflow.run method to avoid sandbox import warnings (or just accept the UserWarning — it's non-fatal)
 - FakeLLMProvider.FAKE_FIX contains `{original_path}` as a literal placeholder (not formatted) — tests should assert `%%FILE%%`/`%%END%%` presence, not the path value
+
+## S06 — LLM Generation Activities — 2026-04-15
+- Step already implemented; all acceptance criteria pass with full test suite coverage >90%
