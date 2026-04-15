@@ -61,3 +61,9 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Verified all acceptance criteria; implementation passes full test suite with 100% coverage.
 - Git operations Activities are synchronous def functions; PAT injection handled for https URLs only.
 - Local bare repo fixture provides hermetic testing without network calls.
+
+## S05 — Git Operations Activities — 2026-04-15
+- All four git Activities (clone/pull/commit/push) implemented as synchronous def functions — GitPython blocking calls run in Temporal ThreadPoolExecutor
+- PAT injection only applies to https:// URLs; local bare repo paths used in tests are passed through unchanged
+- local_bare_repo fixture creates a temporary bare repository and a working clone with an initial commit; all tests are hermetic (no network calls)
+- Full test suite passes (173 tests) with 100% coverage; packages/shared models are exercised by other unit tests
