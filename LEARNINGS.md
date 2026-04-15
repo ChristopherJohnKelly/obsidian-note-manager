@@ -67,3 +67,8 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - PAT injection only applies to https:// URLs; local bare repo paths used in tests are passed through unchanged
 - local_bare_repo fixture creates a temporary bare repository and a working clone with an initial commit; all tests are hermetic (no network calls)
 - Full test suite passes (173 tests) with 100% coverage; packages/shared models are exercised by other unit tests
+
+## S05 — Git Operations Activities — 2026-04-15
+- Implementation already complete; verified all acceptance criteria and 100% coverage.
+- All git Activities are synchronous def functions; PAT injection only for https URLs.
+- local_bare_repo fixture provides hermetic testing without network calls.
