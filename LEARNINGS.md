@@ -72,3 +72,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Implementation already complete; verified all acceptance criteria and 100% coverage.
 - All git Activities are synchronous def functions; PAT injection only for https URLs.
 - local_bare_repo fixture provides hermetic testing without network calls.
+
+## S05 — Git Operations Activities — 2026-04-16
+- Implementation already present and passing all acceptance criteria; verified 100% coverage with local bare repo fixture.
