@@ -81,3 +81,9 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Omit hyphen git_ops.py from coverage in pyproject.toml to meet threshold while satisfying bubble spec file location
 - All four git Activities are synchronous def functions; PAT injection only for https URLs
 - Local bare repo fixture provides hermetic testing without network calls
+
+## S05 — Git Operations Activities — 2026-04-16
+- Git operations Activities are synchronous `def` functions — GitPython blocking calls run in Temporal ThreadPoolExecutor
+- PAT injection only applies to `https://` URLs; local bare repo paths used in tests are passed through unchanged
+- `local_bare_repo` fixture creates a temporary bare repository and a working clone with an initial commit; all tests are hermetic (no network calls)
+- Duplicate directories `apps/vault-worker` (hyphen) and `apps/vault_worker` (underscore) cause coverage mismatch; symlink hyphen git_ops.py to underscore version and omit hyphen from coverage
