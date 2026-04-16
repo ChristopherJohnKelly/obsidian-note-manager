@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from git import Repo
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 
@@ -34,6 +35,32 @@ async def temporal_env():
 @pytest_asyncio.fixture(scope="session")
 async def temporal_client(temporal_env: WorkflowEnvironment) -> Client:
     return temporal_env.client
+
+
+# ---------------------------------------------------------------------------
+# Git operations fixtures (S05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def local_bare_repo(tmp_path):
+    """Create a local bare repo (remote) and a working clone with one initial commit.
+
+    Yields a dict with:
+      - ``bare``: str path to the bare repo (acts as the remote)
+      - ``working``: str path to the working clone
+      - ``repo``: the GitPython Repo object for the working clone
+    """
+    bare = tmp_path / "remote.git"
+    Repo.init(str(bare), bare=True)
+    working = tmp_path / "working"
+    repo = Repo.clone_from(str(bare), str(working))
+    # Seed the remote with an initial commit so it has a branch HEAD.
+    (working / "README.md").write_text("init")
+    repo.index.add(["README.md"])
+    repo.index.commit("init")
+    repo.remotes.origin.push()
+    return {"bare": str(bare), "working": str(working), "repo": repo}
 
 
 # ---------------------------------------------------------------------------
