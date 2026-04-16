@@ -87,3 +87,10 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - PAT injection only applies to `https://` URLs; local bare repo paths used in tests are passed through unchanged
 - `local_bare_repo` fixture creates a temporary bare repository and a working clone with an initial commit; all tests are hermetic (no network calls)
 - Duplicate directories `apps/vault-worker` (hyphen) and `apps/vault_worker` (underscore) cause coverage mismatch; symlink hyphen git_ops.py to underscore version and omit hyphen from coverage
+
+## S05 — Git Operations Activities — 2026-04-16
+- git_push must inspect PushInfo flags (ERROR, REJECTED, REMOTE_REJECTED, REMOTE_FAILURE, NO_MATCH) and raise GitCommandError on any error — silent success leads to data loss
+- GitPython's PushInfo.flags uses bitmask constants; a rejected non‑fast‑forward push sets ERROR|REJECTED (1032)
+- PAT injection in git_clone can leak credentials via GitCommandError.args[0]; sanitize by replacing PAT with *** before re‑raising
+- git_pull raises GitCommandError on divergent branches (fatal: Need to specify how to reconcile divergent branches) — no silent merge‑conflict corruption
+- The hyphen directory `apps/vault-worker` is a symlink to underscore `apps/vault_worker`; coverage omits the symlink to meet threshold
