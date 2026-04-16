@@ -94,3 +94,12 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - PAT injection in git_clone can leak credentials via GitCommandError.args[0]; sanitize by replacing PAT with *** before re‑raising
 - git_pull raises GitCommandError on divergent branches (fatal: Need to specify how to reconcile divergent branches) — no silent merge‑conflict corruption
 - The hyphen directory `apps/vault-worker` is a symlink to underscore `apps/vault_worker`; coverage omits the symlink to meet threshold
+## S06 — LLM Generation Activities — 2026-04-14
+- The %%FILE%%...%%END%% format in vault-worker is DIFFERENT from src_v2's %%FILE: path%% format — do not copy the old parser
+- Activities use module-level `_provider` + `configure_provider()` for testability; autouse fixture injects FakeLLMProvider and resets after each test
+- GeminiProvider requires `# pragma: no cover` (spec explicitly says no unit tests for real adapter); this lifts total coverage above 90%
+- Retry policy test imports LLM_RETRY_POLICY inside the @workflow.run method to avoid sandbox import warnings (or just accept the UserWarning — it's non-fatal)
+- FakeLLMProvider.FAKE_FIX contains `{original_path}` as a literal placeholder (not formatted) — tests should assert `%%FILE%%`/`%%END%%` presence, not the path value
+
+## S06 — LLM Generation Activities — 2026-04-15
+- Step already implemented; all acceptance criteria pass with full test suite coverage >90%
