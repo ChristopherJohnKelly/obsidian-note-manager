@@ -35,3 +35,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S05 rejection — 2026-04-15T20:09:51Z
 - REJECTION: Code quality (critical): git_push silently swallows push rejection (data loss); git_pull ignores merge conflicts (data corruption); PAT credential leaks in GitPython exception messages
+
+## S05 rejection — 2026-04-16T17:17:51Z
+- REJECTION: Code quality (critical): git_push silently succeeds on rejected pushes (no exception raised, PushInfo error flags ignored) — potential data loss when workflow believes unpushed commits are safely on remote
