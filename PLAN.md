@@ -11,7 +11,7 @@ feat/OBSE-P5-temporal-soa-migration
 | S02 | Dummy Vault and Fake LLM | step/OBSE-P5-S02-dummy-vault-fake-llm | S01 | done | #20 | 2 |  |
 | S03 | Temporal Test Environment | step/OBSE-P5-S03-temporal-test-environment | S01,S02 | done | #21 | 2 |  |
 | S04 | Vault IO Activities | step/OBSE-P5-S04-vault-io-activities | S03 | done | #22 | 0 |  |
-| S05 | Git Operations Activities | step/OBSE-P5-S05-git-operations-activities | S03 | queued | #23 | 2 |  |
+| S05 | Git Operations Activities | step/OBSE-P5-S05-git-operations-activities | S03 | in-progress | #23 | 2 | ralph@2026-04-16T17:19:16 |
 | S06 | LLM Generation Activities | step/OBSE-P5-S06-llm-generation-activities | S03,S04 | in-progress | #24 | 1 | ralph@2026-04-16T17:01:00 |
 | S07 | ReadVaultWorkflow           | step/OBSE-P5-S07-read-vault-workflow           | S04,S05         | queued  | —   | 0        |            |
 | S08 | WriteVaultWorkflow          | step/OBSE-P5-S08-write-vault-workflow          | S04,S05         | queued  | —   | 0        |            |
