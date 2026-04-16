@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 from git import Repo
+from git.exc import GitCommandError
 
 from apps.vault_worker.activities.git_ops import (
     git_clone,
@@ -176,3 +177,26 @@ def test_git_push_after_multiple_commits(tmp_path, local_bare_repo):
     Repo.clone_from(bare, str(verify))
     assert (verify / "file_a.md").exists()
     assert (verify / "file_b.md").exists()
+
+
+def test_git_push_rejected_non_fast_forward_raises_exception(tmp_path, local_bare_repo):
+    """git_push raises GitCommandError when the remote rejects the push (non-fast-forward)."""
+    bare = local_bare_repo["bare"]
+    working = local_bare_repo["working"]
+
+    # Clone a second working copy from the same bare repo before pushing
+    second_working = tmp_path / "second_working"
+    second_repo = Repo.clone_from(bare, str(second_working))
+
+    # Commit and push from the original working copy (advances remote HEAD)
+    (Path(working) / "file1.md").write_text("first")
+    git_commit(working, "first commit")
+    git_push(working)
+
+    # Commit on the second working copy (does not have the new remote commit)
+    (Path(second_working) / "file2.md").write_text("second")
+    git_commit(second_working, "second commit")
+
+    # Attempt to push from second working copy; should be rejected
+    with pytest.raises(GitCommandError, match="rejected"):
+        git_push(second_working)
