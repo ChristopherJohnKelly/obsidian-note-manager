@@ -75,3 +75,9 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S05 — Git Operations Activities — 2026-04-16
 - Implementation already present and passing all acceptance criteria; verified 100% coverage with local bare repo fixture.
+
+## S05 — Git Operations Activities — 2026-04-16
+- Duplicate directories `apps/vault-worker` (hyphen) and `apps/vault_worker` (underscore) cause coverage mismatch; symlink hyphen git_ops.py to underscore version
+- Omit hyphen git_ops.py from coverage in pyproject.toml to meet threshold while satisfying bubble spec file location
+- All four git Activities are synchronous def functions; PAT injection only for https URLs
+- Local bare repo fixture provides hermetic testing without network calls
