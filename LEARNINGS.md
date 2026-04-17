@@ -121,3 +121,10 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Workflow sandbox isolates module-level globals, making counting calls impossible; need shared mutable state across sandbox boundary.
 - ExternalWorkflowHandle only has signal method, not update, in Temporal Python SDK 1.25.0; must use signal for cross-workflow communication.
 - Stub workflow duplicate ID across tests causes WorkflowExecutionAlreadyStarted errors; need to cancel stub after each test or use unique IDs.
+
+## S07 — ReadVaultWorkflow — 2026-04-17
+- VaultNote.path: Path serialization requires pydantic_data_converter on client; tests hang when converter missing or misconfigured
+- ExternalWorkflowHandle only has signal method (no update) in Temporal Python SDK 1.25.0; use signal for cross-workflow communication
+- Workflow sandbox isolates module-level globals, making counting calls impossible; need shared mutable state across sandbox boundary via query
+- Stub workflow duplicate ID across tests causes WorkflowExecutionAlreadyStarted errors; cancel stub after each test and use unique queues
+- Ensure pydantic_data_converter fixture is called before test execution; async fixture may not be awaited due to hanging
