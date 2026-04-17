@@ -106,3 +106,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 — ReadVaultWorkflow — 2026-04-16
 - VaultNote.path: Path is not JSON serializable with Temporal's default converter; workflows returning Pydantic models with Path fields will hang unless pydantic_data_converter is configured on the client
+
+## S07 rejection — 2026-04-17T23:01:09Z
+- REJECTION: Workflow uses `mgr.signal()` instead of `mgr.execute_update()`, violating AC #1/#2 (must dispatch Update and block until it returns); test stub registers both update+signal handlers with the same name to mask the contract violation, and the parallel-read count assertion was deleted
