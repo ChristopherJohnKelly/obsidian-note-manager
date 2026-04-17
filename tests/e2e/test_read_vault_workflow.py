@@ -12,8 +12,11 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
+import uuid
 from temporalio import workflow
-from temporalio.client import WorkflowHandle
+from temporalio.client import Client, WorkflowHandle
+from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.worker import Worker
 
 from apps.vault_worker.activities.vault_io import (
@@ -52,7 +55,7 @@ class VaultManagerStub:
     async def run(self) -> None:
         # Stay alive long enough for tests to complete
         print("VaultManagerStub started")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(3600)
         print("VaultManagerStub finished")
 
 
@@ -72,58 +75,70 @@ def reset_ensure_synced_count():
     ensure_synced_call_count = 0
 
 
+@pytest_asyncio.fixture
+async def pydantic_client(temporal_client):
+    """Client with pydantic data converter for Path serialization."""
+    print("ENTERING pydantic_client fixture")
+    print("pydantic_client fixture returning temporal_client (no converter)")
+    return temporal_client
+
+
 # -----------------------------------------------------------------------------
 # Acceptance tests
 # -----------------------------------------------------------------------------
 
 
 async def test_read_vault_dispatches_ensure_synced(
-    temporal_client, dummy_vault_path, reset_ensure_synced_count
+    pydantic_client, dummy_vault_path, reset_ensure_synced_count
 ):
     """AC: ReadVaultWorkflow sends an ensure_synced Update to vault-manager."""
     global ensure_synced_call_count
+    import uuid
+    test_queue = f"test-read-vault-{uuid.uuid4().hex[:8]}"
+    print(f"Starting test, pydantic_client={pydantic_client}, queue={test_queue}")
+    print(f"Worker with workflows={[VaultManagerStub, ReadVaultWorkflow]}")
     async with Worker(
-        temporal_client,
-        task_queue=QUEUE_DEFAULT,
+        pydantic_client,
+        task_queue=test_queue,
         workflows=[VaultManagerStub, ReadVaultWorkflow],
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
         await asyncio.sleep(0.1)
         # Start the stub with the well-known ID
-        await temporal_client.start_workflow(
+        await pydantic_client.start_workflow(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
-            task_queue=QUEUE_DEFAULT,
+            task_queue=test_queue,
         )
-        result = await temporal_client.execute_workflow(
+        result = await pydantic_client.execute_workflow(
             ReadVaultWorkflow.run,
             ReadVaultInput(vault_path=str(dummy_vault_path), context_code="TEST-P01"),
             id="read-test-1",
-            task_queue=QUEUE_DEFAULT,
+            task_queue=test_queue,
         )
     assert ensure_synced_call_count == 1
     assert result.skeleton
 
 
 async def test_read_vault_returns_non_empty_skeleton(
-    temporal_client, dummy_vault_path, reset_ensure_synced_count
+    pydantic_client, dummy_vault_path, reset_ensure_synced_count
 ):
     """AC: The returned VaultContext contains a non-empty skeleton string."""
     global ensure_synced_call_count
     async with Worker(
-        temporal_client,
+        pydantic_client,
         task_queue=QUEUE_DEFAULT,
         workflows=[VaultManagerStub, ReadVaultWorkflow],
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
-        await temporal_client.start_workflow(
+        await pydantic_client.start_workflow(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=QUEUE_DEFAULT,
         )
-        result = await temporal_client.execute_workflow(
+        result = await pydantic_client.execute_workflow(
             ReadVaultWorkflow.run,
             ReadVaultInput(vault_path=str(dummy_vault_path), context_code="TEST-P01"),
             id="read-test-2",
@@ -136,23 +151,23 @@ async def test_read_vault_returns_non_empty_skeleton(
 
 
 async def test_read_vault_returns_non_empty_code_registry(
-    temporal_client, dummy_vault_path, reset_ensure_synced_count
+    pydantic_client, dummy_vault_path, reset_ensure_synced_count
 ):
     """AC: The returned VaultContext contains a non-empty code_registry string."""
     global ensure_synced_call_count
     async with Worker(
-        temporal_client,
+        pydantic_client,
         task_queue=QUEUE_DEFAULT,
         workflows=[VaultManagerStub, ReadVaultWorkflow],
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
-        await temporal_client.start_workflow(
+        await pydantic_client.start_workflow(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=QUEUE_DEFAULT,
         )
-        result = await temporal_client.execute_workflow(
+        result = await pydantic_client.execute_workflow(
             ReadVaultWorkflow.run,
             ReadVaultInput(vault_path=str(dummy_vault_path), context_code="TEST-P01"),
             id="read-test-3",
@@ -165,23 +180,23 @@ async def test_read_vault_returns_non_empty_code_registry(
 
 
 async def test_related_notes_filtered_by_context_code_folder(
-    temporal_client, dummy_vault_path, reset_ensure_synced_count
+    pydantic_client, dummy_vault_path, reset_ensure_synced_count
 ):
     """AC: VaultContext.related_notes contains only notes whose path starts with the folder corresponding to context_code."""
     global ensure_synced_call_count
     async with Worker(
-        temporal_client,
+        pydantic_client,
         task_queue=QUEUE_DEFAULT,
         workflows=[VaultManagerStub, ReadVaultWorkflow],
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
-        await temporal_client.start_workflow(
+        await pydantic_client.start_workflow(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=QUEUE_DEFAULT,
         )
-        result = await temporal_client.execute_workflow(
+        result = await pydantic_client.execute_workflow(
             ReadVaultWorkflow.run,
             ReadVaultInput(vault_path=str(dummy_vault_path), context_code="TEST-P01"),
             id="read-test-4",
@@ -195,24 +210,24 @@ async def test_related_notes_filtered_by_context_code_folder(
 
 
 async def test_multiple_concurrent_reads(
-    temporal_client, dummy_vault_path, reset_ensure_synced_count
+    pydantic_client, dummy_vault_path, reset_ensure_synced_count
 ):
     """AC: Multiple simultaneous ReadVaultWorkflow executions complete without error."""
     global ensure_synced_call_count
     async with Worker(
-        temporal_client,
+        pydantic_client,
         task_queue=QUEUE_DEFAULT,
         workflows=[VaultManagerStub, ReadVaultWorkflow],
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
-        await temporal_client.start_workflow(
+        await pydantic_client.start_workflow(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=QUEUE_DEFAULT,
         )
         results = await asyncio.gather(*[
-            temporal_client.execute_workflow(
+            pydantic_client.execute_workflow(
                 ReadVaultWorkflow.run,
                 ReadVaultInput(vault_path=str(dummy_vault_path), context_code="TEST-P01"),
                 id=f"read-test-parallel-{i}",
