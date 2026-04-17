@@ -49,12 +49,18 @@ class VaultManagerStub:
     async def ensure_synced(self) -> None:
         global ensure_synced_call_count
         ensure_synced_call_count += 1
-        print(f"ensure_synced called, count={ensure_synced_call_count}")
+        print(f"ensure_synced called, count={ensure_synced_call_count}", flush=True)
+
+    @workflow.signal(name=UPD_ENSURE_SYNCED)
+    async def ensure_synced_signal(self) -> None:
+        global ensure_synced_call_count
+        ensure_synced_call_count += 1
+        print(f"ensure_synced_signal called, count={ensure_synced_call_count}", flush=True)
 
     @workflow.run
     async def run(self) -> None:
         # Stay alive long enough for tests to complete
-        print("VaultManagerStub started")
+        print("VaultManagerStub started", flush=True)
         await asyncio.sleep(3600)
         print("VaultManagerStub finished")
 
@@ -72,15 +78,25 @@ class VaultManagerStub:
 @pytest.fixture
 def reset_ensure_synced_count():
     global ensure_synced_call_count
+    print("Resetting ensure_synced_count to 0", flush=True)
     ensure_synced_call_count = 0
 
 
 @pytest_asyncio.fixture
 async def pydantic_client(temporal_client):
     """Client with pydantic data converter for Path serialization."""
-    print("ENTERING pydantic_client fixture")
-    print("pydantic_client fixture returning temporal_client (no converter)")
-    return temporal_client
+    print("ENTERING pydantic_client fixture", flush=True)
+    from temporalio.client import Client
+    from temporalio.contrib.pydantic import pydantic_data_converter
+    print(f"Building pydantic client from temporal_client {temporal_client}", flush=True)
+    # Build a new client with the same service client and namespace but with pydantic data converter
+    pydantic_client = Client(
+        service_client=temporal_client.service_client,
+        namespace=temporal_client.namespace,
+        data_converter=pydantic_data_converter,
+    )
+    print(f"Built pydantic client {pydantic_client}", flush=True)
+    return pydantic_client
 
 
 # -----------------------------------------------------------------------------
@@ -95,8 +111,8 @@ async def test_read_vault_dispatches_ensure_synced(
     global ensure_synced_call_count
     import uuid
     test_queue = f"test-read-vault-{uuid.uuid4().hex[:8]}"
-    print(f"Starting test, pydantic_client={pydantic_client}, queue={test_queue}")
-    print(f"Worker with workflows={[VaultManagerStub, ReadVaultWorkflow]}")
+    print(f"Starting test, pydantic_client={pydantic_client}, queue={test_queue}", flush=True)
+    print(f"Worker with workflows={[VaultManagerStub, ReadVaultWorkflow]}", flush=True)
     async with Worker(
         pydantic_client,
         task_queue=test_queue,
@@ -104,6 +120,7 @@ async def test_read_vault_dispatches_ensure_synced(
         activities=[get_skeleton, get_code_registry, read_note, list_notes_in],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     ):
+        print("Worker started", flush=True)
         await asyncio.sleep(0.1)
         # Start the stub with the well-known ID
         await pydantic_client.start_workflow(

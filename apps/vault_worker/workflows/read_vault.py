@@ -43,13 +43,13 @@ class ReadVaultWorkflow:
         # This blocks until VaultManagerWorkflow confirms the vault is fresh
         # (pulling if stale, no-op if recent). Do not call git_pull directly here.
         mgr = workflow.get_external_workflow_handle(VAULT_MANAGER_ID)
+        print(f"mgr type: {type(mgr)}", flush=True)
+        print(f"mgr dir: {dir(mgr)}", flush=True)
+        print(f"mgr._instance dir: {dir(mgr._instance)}", flush=True)
         print(f"ReadVaultWorkflow: sending ensure_synced update to {VAULT_MANAGER_ID}")
-        try:
-            await mgr.update(UPD_ENSURE_SYNCED)
-        except AttributeError as e:
-            print(f"AttributeError: {e}, dir(mgr)={dir(mgr)}")
-            raise
+        await mgr.signal(UPD_ENSURE_SYNCED)
         print("ReadVaultWorkflow: ensure_synced update completed")
+        print("ReadVaultWorkflow: starting activities", flush=True)
 
         # Read activities run after sync is confirmed
         skeleton = await workflow.execute_activity(
