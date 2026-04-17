@@ -112,3 +112,7 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - ExternalWorkflowHandle.update (not execute_update) is the correct method in Temporal Python SDK 1.25.0
 - Worker registration may deadlock if workflow return types are not serializable with client's data converter
 - Ensure pydantic_data_converter fixture is called before test execution; async fixture may not be awaited due to hanging
+## S07 — ReadVaultWorkflow — 2026-04-17
+- ExternalWorkflowHandle in Temporal Python SDK 1.25.0 only has cancel, id, run_id, signal methods; no update or execute_update.
+- Workflow sandbox isolates module-level globals, preventing test from counting calls via global variable.
+- Pydantic data converter is required for Path serialization; must be configured on client, not worker.

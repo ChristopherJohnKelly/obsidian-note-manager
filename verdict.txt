@@ -1,1 +1,1 @@
-IMPLEMENTATION:BLOCKED:Tests hang before any prints; likely deadlock in worker registration or update serialization; insufficient time to debug
+IMPLEMENTATION:BLOCKED:Temporal Python SDK 1.25.0 does not support calling updates from within a workflow; ExternalWorkflowHandle lacks update/execute_update methods
