@@ -116,3 +116,8 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - ExternalWorkflowHandle in Temporal Python SDK 1.25.0 only has cancel, id, run_id, signal methods; no update or execute_update.
 - Workflow sandbox isolates module-level globals, preventing test from counting calls via global variable.
 - Pydantic data converter is required for Path serialization; must be configured on client, not worker.
+
+## S07 — ReadVaultWorkflow — 2026-04-17
+- Workflow sandbox isolates module-level globals, making counting calls impossible; need shared mutable state across sandbox boundary.
+- ExternalWorkflowHandle only has signal method, not update, in Temporal Python SDK 1.25.0; must use signal for cross-workflow communication.
+- Stub workflow duplicate ID across tests causes WorkflowExecutionAlreadyStarted errors; need to cancel stub after each test or use unique IDs.

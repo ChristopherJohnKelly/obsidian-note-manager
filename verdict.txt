@@ -1,1 +1,1 @@
-IMPLEMENTATION:BLOCKED:Temporal Python SDK 1.25.0 does not support calling updates from within a workflow; ExternalWorkflowHandle lacks update/execute_update methods
+IMPLEMENTATION:BLOCKED:Unable to verify update dispatch due to sandbox isolation; duplicate stub ID across tests causes WorkflowExecutionAlreadyStarted errors
