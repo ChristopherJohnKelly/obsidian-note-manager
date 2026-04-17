@@ -103,3 +103,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S06 — LLM Generation Activities — 2026-04-15
 - Step already implemented; all acceptance criteria pass with full test suite coverage >90%
+
+## S07 — ReadVaultWorkflow — 2026-04-16
+- VaultNote.path: Path is not JSON serializable with Temporal's default converter; workflows returning Pydantic models with Path fields will hang unless pydantic_data_converter is configured on the client
