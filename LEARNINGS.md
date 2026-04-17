@@ -106,3 +106,9 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 — ReadVaultWorkflow — 2026-04-16
 - VaultNote.path: Path is not JSON serializable with Temporal's default converter; workflows returning Pydantic models with Path fields will hang unless pydantic_data_converter is configured on the client
+
+## S07 — ReadVaultWorkflow — 2026-04-17
+- VaultNote.path: Path serialization requires pydantic_data_converter on client; tests hang when converter missing or misconfigured
+- ExternalWorkflowHandle.update (not execute_update) is the correct method in Temporal Python SDK 1.25.0
+- Worker registration may deadlock if workflow return types are not serializable with client's data converter
+- Ensure pydantic_data_converter fixture is called before test execution; async fixture may not be awaited due to hanging
