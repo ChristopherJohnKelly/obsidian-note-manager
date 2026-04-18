@@ -109,3 +109,16 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-17T23:01:09Z
 - REJECTION: Workflow uses `mgr.signal()` instead of `mgr.execute_update()`, violating AC #1/#2 (must dispatch Update and block until it returns); test stub registers both update+signal handlers with the same name to mask the contract violation, and the parallel-read count assertion was deleted
+
+## Exploratory test naming convention (orchestration) — 2026-04-18
+- If you write a test to explore or isolate behaviour during debugging
+  (as opposed to a committed acceptance test), name it `test_explore_<what>.py`.
+- This applies to scratch/debug tests that are not part of the final
+  acceptance suite. Committed acceptance tests keep their normal names.
+- The orchestration loop uses this prefix to distinguish intentional TDD
+  from the rabbit-hole pattern observed in S07 attempt 1. Other prefixes
+  that are treated the same way: test_debug_*, test_inline_*, test_no_*,
+  test_*_issue*, test_string_*, test_scratch_*, test_tmp_*.
+- Creating more than 3 files matching these prefixes in a single session
+  triggers a wind-down signal (WINDDOWN.md at the repo root) and escalates
+  the step to support status for review by a stronger model.
