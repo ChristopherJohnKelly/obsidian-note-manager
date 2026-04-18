@@ -122,3 +122,8 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Creating more than 3 files matching these prefixes in a single session
   triggers a wind-down signal (WINDDOWN.md at the repo root) and escalates
   the step to support status for review by a stronger model.
+
+## S98 — PlanPhaseTest — 2026-04-18
+- Plan phase produced PLAN-S98.md and was followed successfully
+- Acceptance test creates marker file at /tmp/s98-marker.txt and leaves it as proof
+- Coverage threshold (90%) still met after adding test that doesn't import production code
