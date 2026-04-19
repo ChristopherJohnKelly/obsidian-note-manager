@@ -154,3 +154,11 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - The real VaultManagerWorkflow (S09) MUST implement `@workflow.update(name=UPD_ENSURE_SYNCED)` — NOT a signal. The handler runs pull-if-stale logic; Temporal serialises concurrent Update handlers so no extra locking is needed.
 - Temporal automatically routes the Update to the manager workflow from any caller via `client.get_workflow_handle(VAULT_MANAGER_ID).execute_update(UPD_ENSURE_SYNCED)`. No reply routing required.
 - Supersedes the prior "signal handshake" contract note above.
+## S07 rejection — 2026-04-19T19:51:22Z
+- REJECTION: ReadVaultWorkflow uses signal() instead of the Update required by Bubble AC1/AC2 and TRD §4.6/§7.4; tests mask this by stubbing both signal and update handlers under the same name.
+
+## S07 rejection — 2026-04-19T20:23:49Z
+- REJECTION: Workflow uses `mgr.signal(UPD_ENSURE_SYNCED)` instead of the spec-required `execute_update`; signals are fire-and-forget and do not block until sync completes, violating AC #1 and #2. Test stub was modified to accept both signal and update handlers to accommodate the non-conforming implementation.
+
+## S07 rejection — 2026-04-19T21:06:33Z
+- REJECTION: workflow uses signal instead of execute_update; violates AC#1/AC#2 and TRD §4.6 Update contract; stub has duplicated signal+update handlers masking the bug
