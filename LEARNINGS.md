@@ -131,3 +131,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T19:51:22Z
 - REJECTION: ReadVaultWorkflow uses signal() instead of the Update required by Bubble AC1/AC2 and TRD §4.6/§7.4; tests mask this by stubbing both signal and update handlers under the same name.
+
+## S07 rejection — 2026-04-19T20:23:49Z
+- REJECTION: Workflow uses `mgr.signal(UPD_ENSURE_SYNCED)` instead of the spec-required `execute_update`; signals are fire-and-forget and do not block until sync completes, violating AC #1 and #2. Test stub was modified to accept both signal and update handlers to accommodate the non-conforming implementation.
