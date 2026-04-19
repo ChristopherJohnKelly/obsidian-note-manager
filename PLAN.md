@@ -13,7 +13,7 @@ feat/OBSE-P5-temporal-soa-migration
 | S04 | Vault IO Activities | step/OBSE-P5-S04-vault-io-activities | S03 | done | #22 | 0 |  |
 | S05 | Git Operations Activities | step/OBSE-P5-S05-git-operations-activities | S03 | done | #23 | 2 |  |
 | S06 | LLM Generation Activities | step/OBSE-P5-S06-llm-generation-activities | S03,S04 | done | #24 | 1 |  |
-| S07 | ReadVaultWorkflow | step/OBSE-P5-S07-read-vault-workflow | S04,S05 | support | #28 | 6 |  |
+| S07 | ReadVaultWorkflow | step/OBSE-P5-S07-read-vault-workflow | S04,S05 | review | #28 | 7 | opus-4.7-local@2026-04-19T21:03:49Z |
 | S08 | WriteVaultWorkflow | step/OBSE-P5-S08-write-vault-workflow | S04,S05 | in-progress | — | 4 | opus-4.7-local@2026-04-19T20:02:52Z |
 | S09 | VaultManagerWorkflow        | step/OBSE-P5-S09-vault-manager-workflow        | S04,S05         | queued  | —   | 0        |            |
 | S10 | NightWatchmanWorkflow       | step/OBSE-P5-S10-night-watchman-workflow       | S06,S07,S08     | queued  | —   | 0        |            |
