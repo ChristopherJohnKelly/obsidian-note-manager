@@ -122,3 +122,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Creating more than 3 files matching these prefixes in a single session
   triggers a wind-down signal (WINDDOWN.md at the repo root) and escalates
   the step to support status for review by a stronger model.
+
+## S07 rejection — 2026-04-19T14:44:52Z
+- REJECTION: ReadVaultWorkflow uses `mgr.signal()` instead of `execute_update` (violates AC1+AC2); test stub registers matching `@workflow.signal` handler to mask the bug; parallel test count assertion removed; debug prints left in workflow body.
