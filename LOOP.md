@@ -18,6 +18,38 @@ See `PLAN.md` on this branch.
 ## Test Command
 /home/claude/.local/bin/pytest --cov=apps --cov=packages --cov-fail-under=90
 
+## Long-running tests on this VM
+
+Integration tests here spin up Temporalite, which takes 5–15s before the
+first test output appears. During that window stdout is empty — this is
+normal, not a hang. The sandbox harness **blocks `sleep` commands longer
+than a few seconds**, so you cannot "sleep then check" your way through
+test runs. Use `Monitor` instead.
+
+**The pattern:**
+1. Run pytest with `run_in_background: true` (Bash tool).
+2. Attach `Monitor` to the returned pid/shell id **once**, with a timeout
+   generous enough to cover Temporalite startup + the slowest test
+   (~600s / 10 min for a 2–3 min suite is reasonable).
+3. Read the streamed events as they arrive. Monitor surfaces lines as
+   they're produced, so you see Temporalite startup, test collection,
+   and pass/fail output in real time.
+
+**Rules:**
+- Do **not** call `Monitor` twice on the same backgrounded process —
+  every attach spawns fresh work and you will double-run the tests.
+- Do **not** substitute repeated short sleeps for Monitor. The harness
+  blocks them, and looping through rejections burns the turn budget.
+- Empty output for the first 15 seconds is Temporalite booting. Wait.
+- Do **not** declare `IMPLEMENTATION:COMPLETE` based on "the file
+  imports cleanly" or "pytest collected the tests". COMPLETE requires
+  an observed green run against the Test Command above.
+- Once you have written `verdict.txt`, stop. Do not re-write it,
+  do not run "one more verification", do not call any tool trying
+  to signal exit. The parent script reads the file and ends the
+  session; further tool calls are wasted work and will be killed
+  by the verdict watchdog after a short grace period.
+
 ## Context
 - TRD: `TRD.md` (in repo root on feature branch)
 - Bubble specs: `bubbles/OBSE-P5-S{XX}-{name}.md`
