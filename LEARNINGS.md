@@ -128,3 +128,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T16:16:50Z
 - REJECTION: ReadVaultWorkflow uses signal instead of Update for ensure_synced; stub test handles both so tests pass without verifying spec'd Update semantics
+
+## S07 rejection — 2026-04-19T19:51:22Z
+- REJECTION: ReadVaultWorkflow uses signal() instead of the Update required by Bubble AC1/AC2 and TRD §4.6/§7.4; tests mask this by stubbing both signal and update handlers under the same name.
