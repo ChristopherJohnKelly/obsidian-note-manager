@@ -18,6 +18,7 @@ import pytest
 import pytest_asyncio
 from temporalio import workflow
 from temporalio.client import Client, WorkflowFailureError
+from temporalio.common import WorkflowIDReusePolicy
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.exceptions import ApplicationError
 from temporalio.worker import Worker
@@ -136,6 +137,7 @@ async def test_dispatches_update_and_waits_for_completion(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=queue,
+            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
         )
         try:
             result = await pydantic_client.execute_workflow(
@@ -173,6 +175,7 @@ async def test_workflow_fails_when_ensure_synced_update_raises(
             FailingVaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=queue,
+            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
         )
         try:
             with pytest.raises(WorkflowFailureError):
@@ -202,6 +205,7 @@ async def test_returns_non_empty_code_registry(pydantic_client, dummy_vault_path
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=queue,
+            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
         )
         try:
             result = await pydantic_client.execute_workflow(
@@ -236,6 +240,7 @@ async def test_related_notes_filtered_by_context_code_folder(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=queue,
+            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
         )
         try:
             result = await pydantic_client.execute_workflow(
@@ -274,6 +279,7 @@ async def test_multiple_concurrent_reads_each_dispatch_update(
             VaultManagerStub.run,
             id=VAULT_MANAGER_ID,
             task_queue=QUEUE_DEFAULT,
+            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
         )
         try:
             results = await asyncio.gather(*[
