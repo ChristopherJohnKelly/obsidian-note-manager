@@ -128,3 +128,12 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T16:16:50Z
 - REJECTION: ReadVaultWorkflow uses signal instead of Update for ensure_synced; stub test handles both so tests pass without verifying spec'd Update semantics
+
+## S07 — ReadVaultWorkflow — 2026-04-19 (spec revision, opus-4.7-local)
+- Original spec called for `mgr.execute_update(UPD_ENSURE_SYNCED)` on an ExternalWorkflowHandle; the Temporal Python SDK does NOT expose execute_update on ExternalWorkflowHandle (only `.signal()` and `.cancel()`). Three cc-ralph attempts stalled at this contradiction.
+- Bubble rewritten to use Signal-with-reply: caller signals SIG_ENSURE_SYNCED carrying its own `workflow.info().workflow_id`; manager signals SIG_SYNC_ACK back; caller blocks on `workflow.wait_condition(lambda: self._synced, timeout=...)` with a class-level timeout overridable by tests.
+- workflow_names.py: `UPD_ENSURE_SYNCED` removed; `SIG_ENSURE_SYNCED` and `SIG_SYNC_ACK` added.
+
+## S09 hand-off contract — vault-manager signal handshake
+- The real VaultManagerWorkflow (S09) MUST implement `@workflow.signal(name=SIG_ENSURE_SYNCED)` that: (1) performs pull-if-stale decision against its own `last_synced` state, calls `git_pull` activity if needed; (2) signals `SIG_SYNC_ACK` back to the requester whose workflow_id was passed as the signal payload.
+- If S09 fails to implement the reply signal, every ReadVaultWorkflow (and any future caller using the same contract) will fail with TimeoutError after 5 minutes — by design. Do not "fix" that by widening the timeout; implement the reply signal.
