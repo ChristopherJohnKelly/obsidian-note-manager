@@ -134,3 +134,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T20:23:49Z
 - REJECTION: Workflow uses `mgr.signal(UPD_ENSURE_SYNCED)` instead of the spec-required `execute_update`; signals are fire-and-forget and do not block until sync completes, violating AC #1 and #2. Test stub was modified to accept both signal and update handlers to accommodate the non-conforming implementation.
+
+## S07 rejection — 2026-04-19T21:06:33Z
+- REJECTION: workflow uses signal instead of execute_update; violates AC#1/AC#2 and TRD §4.6 Update contract; stub has duplicated signal+update handlers masking the bug
