@@ -125,3 +125,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T14:44:52Z
 - REJECTION: ReadVaultWorkflow uses `mgr.signal()` instead of `execute_update` (violates AC1+AC2); test stub registers matching `@workflow.signal` handler to mask the bug; parallel test count assertion removed; debug prints left in workflow body.
+
+## S07 rejection — 2026-04-19T16:16:50Z
+- REJECTION: ReadVaultWorkflow uses signal instead of Update for ensure_synced; stub test handles both so tests pass without verifying spec'd Update semantics
