@@ -15,7 +15,8 @@ real worker's Temporal Client the same way before Worker start.
 from __future__ import annotations
 
 from temporalio import activity
-from temporalio.client import Client
+from temporalio.client import Client, WorkflowUpdateFailedError
+from temporalio.exceptions import ApplicationError
 
 from packages.shared.workflow_names import UPD_ENSURE_SYNCED
 
@@ -48,9 +49,17 @@ async def ensure_vault_synced(manager_id: str) -> None:
     """Execute the ensure_synced Update on the VaultManagerWorkflow.
 
     Blocks until the Update handler returns (pull-if-stale on the manager
-    side). Any exception from the handler propagates and fails the activity,
-    which fails the calling ReadVaultWorkflow.
+    side). An Update-handler failure is a deterministic business error and
+    is re-raised as a non-retryable ApplicationError so the calling
+    ReadVaultWorkflow fails immediately rather than spinning through
+    activity retries. Transient RPC errors are still retryable by default.
     """
     client = _get_client()
     handle = client.get_workflow_handle(manager_id)
-    await handle.execute_update(UPD_ENSURE_SYNCED)
+    try:
+        await handle.execute_update(UPD_ENSURE_SYNCED)
+    except WorkflowUpdateFailedError as exc:
+        raise ApplicationError(
+            f"ensure_synced update failed: {exc}",
+            non_retryable=True,
+        ) from exc
