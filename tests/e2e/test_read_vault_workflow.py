@@ -1,8 +1,11 @@
 """E2E tests for ReadVaultWorkflow.
 
-Covers all acceptance criteria from bubbles/OBSE-P5-S07-read-vault-workflow.md
-against the signal-with-reply contract (SIG_ENSURE_SYNCED request,
-SIG_SYNC_ACK reply).
+Covers all acceptance criteria from bubbles/OBSE-P5-S07-read-vault-workflow.md.
+``ReadVaultWorkflow`` dispatches the TRD-specified ``ensure_synced`` Update to
+``VaultManagerWorkflow`` via the ``ensure_vault_synced`` activity (activity
+shim is required because ``ExternalWorkflowHandle`` has no ``execute_update``
+on the Python SDK). Tests register a ``VaultManagerStub`` with a real
+``@workflow.update`` handler — no signal or dual registrations.
 """
 
 from __future__ import annotations
@@ -10,13 +13,13 @@ from __future__ import annotations
 import asyncio
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
 
 import pytest
 import pytest_asyncio
 from temporalio import workflow
 from temporalio.client import Client, WorkflowFailureError
 from temporalio.contrib.pydantic import pydantic_data_converter
+from temporalio.exceptions import ApplicationError
 from temporalio.worker import Worker
 
 from apps.vault_worker.activities.vault_io import (
@@ -25,36 +28,51 @@ from apps.vault_worker.activities.vault_io import (
     list_notes_in,
     read_note,
 )
+from apps.vault_worker.activities.vault_manager_client import (
+    configure_client,
+    ensure_vault_synced,
+)
 from apps.vault_worker.workflows.read_vault import ReadVaultInput, ReadVaultWorkflow
 from packages.shared.workflow_names import (
     QUEUE_DEFAULT,
-    SIG_ENSURE_SYNCED,
-    SIG_SYNC_ACK,
+    UPD_ENSURE_SYNCED,
     VAULT_MANAGER_ID,
 )
 
 
 # ---------------------------------------------------------------------------
-# Inline stub — minimal stand-in for VaultManagerWorkflow (full impl in S09)
+# Inline stubs — minimal stand-ins for VaultManagerWorkflow (full impl in S09)
 # ---------------------------------------------------------------------------
 
 
 @workflow.defn
 class VaultManagerStub:
-    """Ack's SIG_ENSURE_SYNCED by signalling SIG_SYNC_ACK back to the requester."""
+    """Accepts ensure_synced Update; returns immediately (fresh vault)."""
 
     def __init__(self) -> None:
         self._call_count: int = 0
 
-    @workflow.signal(name=SIG_ENSURE_SYNCED)
-    async def on_ensure_synced(self, requester_id: str) -> None:
+    @workflow.update(name=UPD_ENSURE_SYNCED)
+    async def on_ensure_synced(self) -> None:
         self._call_count += 1
-        requester = workflow.get_external_workflow_handle(requester_id)
-        await requester.signal(SIG_SYNC_ACK)
 
     @workflow.query
     def call_count(self) -> int:
         return self._call_count
+
+    @workflow.run
+    async def run(self) -> None:
+        await asyncio.sleep(3600)
+
+
+@workflow.defn
+class FailingVaultManagerStub:
+    """VaultManager whose ensure_synced Update handler raises — simulates a
+    failed pull or stale-check error, which must propagate to the caller."""
+
+    @workflow.update(name=UPD_ENSURE_SYNCED)
+    async def on_ensure_synced(self) -> None:
+        raise ApplicationError("simulated pull failure", non_retryable=True)
 
     @workflow.run
     async def run(self) -> None:
@@ -69,12 +87,18 @@ class VaultManagerStub:
 @pytest_asyncio.fixture
 async def pydantic_client(temporal_client: Client) -> Client:
     """Client with pydantic_data_converter — VaultNote.path is pathlib.Path
-    which the default converter cannot round-trip."""
-    return Client(
+    which the default converter cannot round-trip. Also injects the client
+    into the ensure_vault_synced activity."""
+    client = Client(
         service_client=temporal_client.service_client,
         namespace=temporal_client.namespace,
         data_converter=pydantic_data_converter,
     )
+    configure_client(client)
+    try:
+        yield client
+    finally:
+        configure_client(None)
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +111,7 @@ def _fresh_queue() -> str:
 
 
 def _read_activities():
-    return [get_skeleton, get_code_registry, read_note, list_notes_in]
+    return [get_skeleton, get_code_registry, read_note, list_notes_in, ensure_vault_synced]
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +119,11 @@ def _read_activities():
 # ---------------------------------------------------------------------------
 
 
-async def test_dispatches_and_waits_for_ack(pydantic_client, dummy_vault_path):
-    """ReadVaultWorkflow signals vault-manager and blocks until ack arrives."""
+async def test_dispatches_update_and_waits_for_completion(
+    pydantic_client, dummy_vault_path
+):
+    """ReadVaultWorkflow executes the ensure_synced Update and blocks until
+    the VaultManager handler returns. Proves Update dispatch + completion."""
     queue = _fresh_queue()
     async with Worker(
         pydantic_client,
@@ -128,32 +155,38 @@ async def test_dispatches_and_waits_for_ack(pydantic_client, dummy_vault_path):
     assert result.skeleton
 
 
-async def test_workflow_fails_if_ack_never_arrives(
-    pydantic_client, dummy_vault_path, monkeypatch
+async def test_workflow_fails_when_ensure_synced_update_raises(
+    pydantic_client, dummy_vault_path
 ):
-    """Without a running vault-manager, the workflow must fail — not hang,
-    and not silently proceed with reads against an unsynchronised vault."""
-    monkeypatch.setattr(ReadVaultWorkflow, "_SYNC_TIMEOUT", timedelta(seconds=3))
-
+    """If the VaultManager ensure_synced handler fails (e.g. pull error),
+    the ReadVaultWorkflow must fail — not silently proceed with reads
+    against an unsynchronised vault."""
     queue = _fresh_queue()
     async with Worker(
         pydantic_client,
         task_queue=queue,
-        workflows=[VaultManagerStub, ReadVaultWorkflow],
+        workflows=[FailingVaultManagerStub, ReadVaultWorkflow],
         activities=_read_activities(),
         activity_executor=ThreadPoolExecutor(max_workers=4),
     ):
-        # Intentionally do NOT start VaultManagerStub — no one will ack.
-        with pytest.raises(WorkflowFailureError):
-            await pydantic_client.execute_workflow(
-                ReadVaultWorkflow.run,
-                ReadVaultInput(
-                    vault_path=str(dummy_vault_path),
-                    context_code="TEST-P01",
-                ),
-                id=f"read-timeout-{uuid.uuid4().hex[:4]}",
-                task_queue=queue,
-            )
+        stub_handle = await pydantic_client.start_workflow(
+            FailingVaultManagerStub.run,
+            id=VAULT_MANAGER_ID,
+            task_queue=queue,
+        )
+        try:
+            with pytest.raises(WorkflowFailureError):
+                await pydantic_client.execute_workflow(
+                    ReadVaultWorkflow.run,
+                    ReadVaultInput(
+                        vault_path=str(dummy_vault_path),
+                        context_code="TEST-P01",
+                    ),
+                    id=f"read-fail-{uuid.uuid4().hex[:4]}",
+                    task_queue=queue,
+                )
+        finally:
+            await stub_handle.cancel()
 
 
 async def test_returns_non_empty_code_registry(pydantic_client, dummy_vault_path):
@@ -225,12 +258,11 @@ async def test_related_notes_filtered_by_context_code_folder(
         )
 
 
-async def test_multiple_concurrent_reads_each_get_their_own_ack(
+async def test_multiple_concurrent_reads_each_dispatch_update(
     pydantic_client, dummy_vault_path
 ):
-    """5 concurrent ReadVaultWorkflow runs must each succeed and trigger
-    exactly one ensure_synced handler call (call_count == 5), proving the
-    reply-address routing works per caller."""
+    """5 concurrent ReadVaultWorkflow runs must each succeed and each invoke
+    the VaultManager Update handler exactly once (call_count == 5)."""
     async with Worker(
         pydantic_client,
         task_queue=QUEUE_DEFAULT,

@@ -19,8 +19,9 @@ SIG_RECEIVE_MESSAGE = "receive_message"
 SIG_CANCEL_SESSION = "cancel_session"
 SIG_APPROVE = "approve"
 SIG_REJECT = "reject"
-SIG_ENSURE_SYNCED = "ensure_synced"
-SIG_SYNC_ACK = "sync_ack"
+
+# Update names
+UPD_ENSURE_SYNCED = "ensure_synced"
 
 # Query names
 QRY_GET_HISTORY = "get_history"

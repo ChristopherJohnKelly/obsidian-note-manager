@@ -35,10 +35,9 @@ from packages.shared.workflow_names import (
     READ_VAULT_WORKFLOW,
     SIG_APPROVE,
     SIG_CANCEL_SESSION,
-    SIG_ENSURE_SYNCED,
     SIG_RECEIVE_MESSAGE,
     SIG_REJECT,
-    SIG_SYNC_ACK,
+    UPD_ENSURE_SYNCED,
     VAULT_MANAGER_ID,
     VAULT_MANAGER_WORKFLOW,
     WORKFLOW_NAMES,
@@ -311,12 +310,17 @@ class TestWorkflowNames:
             SIG_CANCEL_SESSION,
             SIG_APPROVE,
             SIG_REJECT,
-            SIG_ENSURE_SYNCED,
-            SIG_SYNC_ACK,
         ]
         for sig in signals:
             assert isinstance(sig, str), f"{sig} must be a string"
             assert len(sig) > 0
+
+    def test_update_names(self):
+        """All update names are non-empty strings."""
+        updates = [UPD_ENSURE_SYNCED]
+        for upd in updates:
+            assert isinstance(upd, str)
+            assert len(upd) > 0
 
     def test_query_names(self):
         """All query names are non-empty strings."""

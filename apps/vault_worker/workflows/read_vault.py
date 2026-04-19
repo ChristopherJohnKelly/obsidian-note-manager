@@ -1,12 +1,11 @@
 """ReadVaultWorkflow — shared read handler for all parent workflows.
 
-Runs on the vault-default queue. Emulates Update semantics against the
-long-running VaultManagerWorkflow (well-known ID ``vault-manager``) via a
-request-Signal + reply-Signal pair: we signal SIG_ENSURE_SYNCED with our
-own workflow ID as the reply address, then block on wait_condition until
-VaultManager signals SIG_SYNC_ACK back. The SDK's ExternalWorkflowHandle
-does not expose execute_update, so Signal-with-reply is the correct
-workflow-to-workflow coordination primitive here.
+Runs on the vault-default queue. Before reading, executes the
+``ensure_synced`` Update on the long-running VaultManagerWorkflow (well-known
+ID ``vault-manager``). The Update is dispatched via the
+``ensure_vault_synced`` Activity because the Python SDK's
+``ExternalWorkflowHandle`` does not expose ``execute_update``; the activity
+uses a Temporal Client to call the Update and blocks until it returns.
 """
 
 from __future__ import annotations
@@ -23,12 +22,11 @@ with workflow.unsafe.imports_passed_through():
         list_notes_in,
         read_note,
     )
-    from packages.shared.models import CodeRegistryEntry, VaultContext
-    from packages.shared.workflow_names import (
-        SIG_ENSURE_SYNCED,
-        SIG_SYNC_ACK,
-        VAULT_MANAGER_ID,
+    from apps.vault_worker.activities.vault_manager_client import (
+        ensure_vault_synced,
     )
+    from packages.shared.models import CodeRegistryEntry, VaultContext
+    from packages.shared.workflow_names import VAULT_MANAGER_ID
 
 
 @dataclass
@@ -39,23 +37,12 @@ class ReadVaultInput:
 
 @workflow.defn
 class ReadVaultWorkflow:
-    _SYNC_TIMEOUT = timedelta(minutes=5)
-
-    def __init__(self) -> None:
-        self._synced: bool = False
-
-    @workflow.signal(name=SIG_SYNC_ACK)
-    async def on_sync_ack(self) -> None:
-        self._synced = True
-
     @workflow.run
     async def run(self, input: ReadVaultInput) -> VaultContext:
-        mgr = workflow.get_external_workflow_handle(VAULT_MANAGER_ID)
-        await mgr.signal(SIG_ENSURE_SYNCED, workflow.info().workflow_id)
-
-        await workflow.wait_condition(
-            lambda: self._synced,
-            timeout=self._SYNC_TIMEOUT,
+        await workflow.execute_activity(
+            ensure_vault_synced,
+            args=[VAULT_MANAGER_ID],
+            start_to_close_timeout=timedelta(minutes=5),
         )
 
         skeleton = await workflow.execute_activity(

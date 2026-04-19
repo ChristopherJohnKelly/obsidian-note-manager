@@ -137,3 +137,18 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 ## S09 hand-off contract — vault-manager signal handshake
 - The real VaultManagerWorkflow (S09) MUST implement `@workflow.signal(name=SIG_ENSURE_SYNCED)` that: (1) performs pull-if-stale decision against its own `last_synced` state, calls `git_pull` activity if needed; (2) signals `SIG_SYNC_ACK` back to the requester whose workflow_id was passed as the signal payload.
 - If S09 fails to implement the reply signal, every ReadVaultWorkflow (and any future caller using the same contract) will fail with TimeoutError after 5 minutes — by design. Do not "fix" that by widening the timeout; implement the reply signal.
+
+## S07 rejection — 2026-04-19T21:10:00Z
+- REJECTION: serena (again). Bubble v3 changed the contract from Update to Signal-with-reply but the TRD still mandates Update in §4.6 and §7.4. Serena reviews against the TRD, not the bubble.
+
+## S07 — Update-via-activity-shim (TRD-aligned) — 2026-04-19
+- When the Python SDK is missing a cross-workflow primitive mandated by the TRD, the correct move is an ACTIVITY SHIM — do NOT rewrite the TRD.
+- Pattern: activity holds a Temporal `Client` (via a module-level `_client` with `configure_client()` injector), calls `client.get_workflow_handle(manager_id).execute_update(UPD_ENSURE_SYNCED)` from inside the activity. Workflow blocks on the activity, which blocks on the Update. Update semantics (strong completion, error propagation) preserved.
+- Python SDK's `workflow.get_external_workflow_handle()` only exposes `.signal()` and `.cancel()` — no `execute_update`. This is the sanctioned workaround.
+- workflow_names.py: `SIG_ENSURE_SYNCED` / `SIG_SYNC_ACK` REMOVED; `UPD_ENSURE_SYNCED` restored.
+- Test stub: `VaultManagerStub` uses `@workflow.update(name=UPD_ENSURE_SYNCED)` ONLY — no signal handler, no dual registration. Failure test uses a separate `FailingVaultManagerStub` whose Update raises `ApplicationError(non_retryable=True)`.
+
+## S09 hand-off contract — vault-manager Update handler (corrected)
+- The real VaultManagerWorkflow (S09) MUST implement `@workflow.update(name=UPD_ENSURE_SYNCED)` — NOT a signal. The handler runs pull-if-stale logic; Temporal serialises concurrent Update handlers so no extra locking is needed.
+- Temporal automatically routes the Update to the manager workflow from any caller via `client.get_workflow_handle(VAULT_MANAGER_ID).execute_update(UPD_ENSURE_SYNCED)`. No reply routing required.
+- Supersedes the prior "signal handshake" contract note above.
