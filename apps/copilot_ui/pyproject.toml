@@ -3,17 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "obsidian-vault-worker"
+name = "obsidian-copilot-ui"
 version = "0.1.0"
-description = "Temporal worker for Obsidian vault automation"
+description = "Chainlit UI for Obsidian copilot (Temporal client only)"
 requires-python = ">=3.12"
 dependencies = [
     "obsidian-shared",
     "temporalio",
-    "gitpython",
-    "python-frontmatter",
-    "google-generativeai>=0.3.0",
+    "chainlit>=1.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["apps/vault-worker"]
+packages = ["apps/copilot_ui"]

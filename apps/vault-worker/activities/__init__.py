@@ -1,1 +1,0 @@
-"""Vault worker activity modules."""
