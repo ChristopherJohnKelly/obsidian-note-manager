@@ -30,8 +30,8 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/activities/vault_io.py` — add `check_vault_dir_state` here
-- `apps/vault-worker/activities/git_ops.py` — `git_clone`, `git_pull`
+- `apps/vault_worker/activities/vault_io.py` — add `check_vault_dir_state` here
+- `apps/vault_worker/activities/git_ops.py` — `git_clone`, `git_pull`
 - `packages/shared/workflow_names.py` — `VAULT_MANAGER_WORKFLOW`, `VAULT_MANAGER_ID`, `UPD_ENSURE_SYNCED`, `QRY_GET_SYNC_STATUS`
 - `tests/conftest.py` — `local_bare_repo` fixture (from S05)
 
@@ -39,11 +39,11 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/vault_io.py` — add `check_vault_dir_state` Activity
-- [ ] `apps/vault-worker/workflows/vault_manager.py` — `VaultManagerWorkflow`
+- [ ] `apps/vault_worker/activities/vault_io.py` — add `check_vault_dir_state` Activity
+- [ ] `apps/vault_worker/workflows/vault_manager.py` — `VaultManagerWorkflow`
 - [ ] `tests/unit/test_check_vault_dir_state.py` — unit tests for the new Activity
 - [ ] `tests/e2e/test_vault_manager_workflow.py`
-- [ ] Update `apps/vault-worker/worker.py` — startup script starts `VaultManagerWorkflow` and waits for `status=ready` before accepting other work
+- [ ] Update `apps/vault_worker/worker.py` — startup script starts `VaultManagerWorkflow` and waits for `status=ready` before accepting other work
 
 **Workflow interface:**
 
@@ -99,8 +99,8 @@ class VaultManagerWorkflow:
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/activities/vault_io.py` (add `check_vault_dir_state` only), `apps/vault-worker/workflows/vault_manager.py`, `tests/unit/test_check_vault_dir_state.py`, `tests/e2e/test_vault_manager_workflow.py`, `apps/vault-worker/worker.py`
-**Must not modify:** `packages/shared/`, `apps/vault-worker/activities/git_ops.py`, other Activity files, `tests/fixtures/`, `tests/conftest.py`
+**May modify:** `apps/vault_worker/activities/vault_io.py` (add `check_vault_dir_state` only), `apps/vault_worker/workflows/vault_manager.py`, `tests/unit/test_check_vault_dir_state.py`, `tests/e2e/test_vault_manager_workflow.py`, `apps/vault_worker/worker.py`
+**Must not modify:** `packages/shared/`, `apps/vault_worker/activities/git_ops.py`, other Activity files, `tests/fixtures/`, `tests/conftest.py`
 
 ---
 
@@ -130,7 +130,7 @@ class VaultManagerWorkflow:
 ### check_vault_dir_state Activity (synchronous def — file I/O belongs here, NOT in the workflow)
 
 ```python
-# apps/vault-worker/activities/vault_io.py
+# apps/vault_worker/activities/vault_io.py
 from pathlib import Path
 from temporalio import activity
 
@@ -154,7 +154,7 @@ def check_vault_dir_state(vault_path: str) -> str:
 ### VaultManagerWorkflow (full pattern)
 
 ```python
-# apps/vault-worker/workflows/vault_manager.py
+# apps/vault_worker/workflows/vault_manager.py
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -257,7 +257,7 @@ class VaultManagerWorkflow:
 ### Worker startup pattern
 
 ```python
-# apps/vault-worker/worker.py
+# apps/vault_worker/worker.py
 import asyncio, os
 from temporalio.client import Client
 from packages.shared.workflow_names import VAULT_MANAGER_ID, VAULT_MANAGER_WORKFLOW, QUEUE_DEFAULT

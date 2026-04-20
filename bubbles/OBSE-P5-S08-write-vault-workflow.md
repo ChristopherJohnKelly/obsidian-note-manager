@@ -30,8 +30,8 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/activities/vault_io.py`
-- `apps/vault-worker/activities/git_ops.py`
+- `apps/vault_worker/activities/vault_io.py`
+- `apps/vault_worker/activities/git_ops.py`
 - `packages/shared/models.py` — `VaultNote`
 - `packages/shared/workflow_names.py` — `QUEUE_MUTATION`
 
@@ -39,7 +39,7 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/workflows/write_vault.py` — `WriteVaultWorkflow`
+- [ ] `apps/vault_worker/workflows/write_vault.py` — `WriteVaultWorkflow`
 - [ ] `tests/e2e/test_write_vault_workflow.py` — including sequential-guarantee load test
 
 **Workflow interface:**
@@ -78,8 +78,8 @@ class WriteVaultWorkflow:
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/workflows/write_vault.py`, `tests/e2e/test_write_vault_workflow.py`, `apps/vault-worker/worker.py` (to register the mutation-queue worker)
-**Must not modify:** `apps/vault-worker/workflows/read_vault.py`, Activity files, `packages/shared/`
+**May modify:** `apps/vault_worker/workflows/write_vault.py`, `tests/e2e/test_write_vault_workflow.py`, `apps/vault_worker/worker.py` (to register the mutation-queue worker)
+**Must not modify:** `apps/vault_worker/workflows/read_vault.py`, Activity files, `packages/shared/`
 
 ---
 
@@ -94,9 +94,9 @@ class WriteVaultWorkflow:
 ## 7. Step-by-Step Plan
 
 1. Write the full `test_write_vault_workflow.py` including the 10-concurrent-writes load test. Commit (failing).
-2. Define `WriteOperation`, `WriteVaultInput` dataclasses in `apps/vault-worker/workflows/write_vault.py`.
+2. Define `WriteOperation`, `WriteVaultInput` dataclasses in `apps/vault_worker/workflows/write_vault.py`.
 3. Implement `WriteVaultWorkflow.run`: pull → iterate operations → push → return SHA.
-4. In `apps/vault-worker/worker.py`, register a second `Worker` instance on `QUEUE_MUTATION` with `max_concurrent_workflow_tasks=1, max_concurrent_activities=1`.
+4. In `apps/vault_worker/worker.py`, register a second `Worker` instance on `QUEUE_MUTATION` with `max_concurrent_workflow_tasks=1, max_concurrent_activities=1`.
 5. Run individual save/delete tests — pass.
 6. Run the 10-concurrent-writes load test — pass and verify serialisation.
 7. Commit.
@@ -105,10 +105,81 @@ class WriteVaultWorkflow:
 
 ## 8. Reference Material
 
+### WriteVaultWorkflow skeleton
+
+```python
+# apps/vault_worker/workflows/write_vault.py
+from __future__ import annotations
+from dataclasses import dataclass
+from datetime import timedelta
+from typing import Literal
+from temporalio import workflow
+
+with workflow.unsafe.imports_passed_through():
+    from apps.vault_worker.activities.vault_io import save_note, delete_note
+    from apps.vault_worker.activities.git_ops import git_pull, git_commit, git_push
+    from packages.shared.models import VaultNote
+
+
+@dataclass
+class WriteOperation:
+    op: Literal["save", "delete"]
+    path: str
+    note: VaultNote | None = None  # required when op == "save"
+
+
+@dataclass
+class WriteVaultInput:
+    vault_path: str
+    operations: list[WriteOperation]
+    commit_message: str
+
+
+@workflow.defn
+class WriteVaultWorkflow:
+    @workflow.run
+    async def run(self, input: WriteVaultInput) -> str:
+        if not input.operations:
+            return ""  # No-op: empty operations → no pull, no commit
+
+        await workflow.execute_activity(
+            git_pull,
+            args=[input.vault_path],
+            schedule_to_close_timeout=timedelta(minutes=5),
+        )
+
+        for op in input.operations:
+            if op.op == "save":
+                assert op.note is not None
+                await workflow.execute_activity(
+                    save_note,
+                    args=[input.vault_path, op.path, op.note],
+                    schedule_to_close_timeout=timedelta(minutes=1),
+                )
+            elif op.op == "delete":
+                await workflow.execute_activity(
+                    delete_note,
+                    args=[input.vault_path, op.path],
+                    schedule_to_close_timeout=timedelta(minutes=1),
+                )
+
+        sha = await workflow.execute_activity(
+            git_commit,
+            args=[input.vault_path, input.commit_message],
+            schedule_to_close_timeout=timedelta(minutes=1),
+        )
+        await workflow.execute_activity(
+            git_push,
+            args=[input.vault_path],
+            schedule_to_close_timeout=timedelta(minutes=5),
+        )
+        return sha
+```
+
 ### Mutation-queue Worker registration
 
 ```python
-# apps/vault-worker/worker.py
+# apps/vault_worker/worker.py
 write_worker = Worker(
     client,
     task_queue=QUEUE_MUTATION,
