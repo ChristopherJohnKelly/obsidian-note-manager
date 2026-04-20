@@ -15,7 +15,7 @@ feat/OBSE-P5-temporal-soa-migration
 | S06 | LLM Generation Activities | step/OBSE-P5-S06-llm-generation-activities | S03,S04 | done | #24 | 1 |  |
 | S07 | ReadVaultWorkflow | step/OBSE-P5-S07-read-vault-workflow | S04,S05 | done | #28 | 9 |  |
 | S08 | WriteVaultWorkflow | step/OBSE-P5-S08-write-vault-workflow | S04,S05 | in-progress | — | 4 | opus-4.7-local@2026-04-20T10:53:48Z |
-| S09 | VaultManagerWorkflow | step/OBSE-P5-S09-vault-manager-workflow | S04,S05 | in-progress | — | 1 | ralph@2026-04-20T11:43:19 |
+| S09 | VaultManagerWorkflow | step/OBSE-P5-S09-vault-manager-workflow | S04,S05 | queued | — | 2 |  |
 | S10 | NightWatchmanWorkflow       | step/OBSE-P5-S10-night-watchman-workflow       | S06,S07,S08     | queued  | —   | 0        |            |
 | S11 | FilerIngestionWorkflow      | step/OBSE-P5-S11-filer-ingestion-workflow      | S06,S07,S08     | queued  | —   | 0        |            |
 | S12 | CopilotSessionWorkflow      | step/OBSE-P5-S12-copilot-session-workflow      | S06,S07         | queued  | —   | 0        |            |
