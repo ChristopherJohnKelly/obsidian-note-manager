@@ -40,7 +40,7 @@ addopts = "--cov=apps --cov=packages --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["apps", "packages"]
-omit = ["*/tests/*", "*/__pycache__/*", "apps/copilot-ui/app.py", "apps/vault-worker/activities/git_ops.py"]
+omit = ["*/tests/*", "*/__pycache__/*", "apps/copilot_ui/app.py", "apps/vault_worker/activities/git_ops.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "def __repr__"]

@@ -3,15 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "obsidian-copilot-ui"
+name = "obsidian-github-runner"
 version = "0.1.0"
-description = "Chainlit UI for Obsidian copilot (Temporal client only)"
+description = "Dumb Temporal trigger for GitHub Actions runner"
 requires-python = ">=3.12"
 dependencies = [
     "obsidian-shared",
     "temporalio",
-    "chainlit>=1.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["apps/copilot-ui"]
+packages = ["apps/github_runner"]

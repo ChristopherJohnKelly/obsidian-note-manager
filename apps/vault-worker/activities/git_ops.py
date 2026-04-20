@@ -1,1 +1,0 @@
-../../vault_worker/activities/git_ops.py
