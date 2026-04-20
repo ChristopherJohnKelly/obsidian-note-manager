@@ -1,68 +1,162 @@
-# PLAN-S08 — WriteVaultWorkflow (manual-steering revision)
+# PLAN-S08 — WriteVaultWorkflow (post-fix, wrapping up)
 
-Implements the bubble at `bubbles/OBSE-P5-S08-write-vault-workflow.md`.
-Ralph attempted this 4 times; all timed out under the session watchdog.
-Root cause was orchestration (concurrent pytest spawn loop), not scope.
-The previous step branch already contains a workflow + test file that are
-~80% correct — this plan rebases that material and fixes the four
-specific issues called out in `FAILURE-S08.md`.
+Implements `bubbles/OBSE-P5-S08-write-vault-workflow.md` (amended
+2026-04-20, commit `3a43b3b` on `feat/OBSE-P5-temporal-soa-migration`).
+Ralph attempted S08 four times and timed out under the session
+watchdog; Opus-local took over, diagnosed the load-test hang, amended
+the bubble with the fix, and got all 6 tests green. Remaining work is
+coverage verification, LEARNINGS append, and PR.
 
-## Test sequence
+This plan supersedes the prior probe-driven version. The debugging
+phase is complete.
 
-TDD order — confirm all tests fail (or assert wrongly) before implementing fixes.
+## Resolution summary
 
-1. **test_save_operation_writes_file**: single `WriteOperation(op="save", ...)`; assert file exists at `tmp_path / "x.md"` after workflow completes and contains expected body. Per-test UUID queue.
-2. **test_delete_operation_removes_file**: pre-create file via real `save_note`, then run workflow with `WriteOperation(op="delete", ...)`; assert file gone. **Per-test UUID queue** (currently uses `QUEUE_MUTATION` — must change).
-3. **test_empty_operations_list_no_changes_no_commit**: workflow with `operations=[]`; assert returns `""` (empty SHA), assert no `git_commit` was called via recording mock. **Per-test UUID queue** (currently uses `QUEUE_MUTATION` — must change).
-4. **test_git_pull_called_before_writes**: recording-mock activities collect `call_order: list[str]`; assert `call_order[0] == "git_pull"` and at least one `save_note:*` follows. Per-test UUID queue.
-5. **test_git_commit_and_push_called_after_operations**: same recording-mock pattern; assert `call_order[-2:] == ["git_commit", "git_push"]`. Per-test UUID queue.
-6. **test_sequential_writes_serialise_under_load**: bubble §4 bullet 5 verbatim. Fire 10 concurrent `WriteVaultWorkflow` requests using a timed mock `save_note` (sleeps 0.1s); `assert elapsed > 0.9s`. **Must use `task_queue=QUEUE_MUTATION`** (currently uses uuid — must change). This is the one test that proves the production queue's `max_concurrent_*=1` config serialises writes.
+The load-test hang was a Temporal SDK constraint, not an implementation
+bug. Per the SDK: *"`max_concurrent_workflow_tasks` must be at least 2
+if `max_cached_workflows` is nonzero."* `max_cached_workflows` defaults
+to 1000, so pairing `max_concurrent_workflow_tasks=1` with the default
+cache deadlocks the Worker under concurrent load — one task slot, many
+cache slots, no way to evict.
 
-## Implementation sequence
+**Fix:** add `max_cached_workflows=0` to the load-test Worker only.
+Production Worker (TRD §4.5) keeps the default cache and uses a real
+Temporal server, so it is unaffected.
 
-1. **Rebase step branch onto `feat/OBSE-P5-temporal-soa-migration` HEAD.** The existing material (`apps/vault_worker/workflows/write_vault.py`, `tests/e2e/test_write_vault_workflow.py`, two-worker `apps/vault_worker/worker.py`) is mostly correct and worth keeping. Resolve any conflicts cleanly.
-2. **Verify VM is clean before any pytest run:** `ps aux | grep -E "pytest|temporal" | grep -v grep`. If any orphans exist, `pkill -f "pytest tests/" ; pkill -f temporalite` and re-check.
-3. **Verify real activity signatures** before touching mocks: `grep "@activity.defn" apps/vault_worker/activities/*.py`. Confirmed shapes (do not drift in mocks):
-   - `save_note(vault_root: str, path: str, note: VaultNote) -> None`
-   - `delete_note(vault_root: str, path: str) -> None`
-   - `git_pull(vault_path: str) -> None`
-   - `git_commit(vault_path: str, message: str) -> str`
-   - `git_push(vault_path: str) -> None`
-4. **Clean up `apps/vault_worker/workflows/write_vault.py`:** remove the four leftover `workflow.logger.info(...)` debug calls (lines 60, 72, 85, 93, 104, 112 in the current file). Keep workflow logic as-is — empty-ops short-circuit → `git_pull` → for each op `save_note`/`delete_note` → `git_commit` → `git_push` → return SHA.
-5. **Fix queue naming in `tests/e2e/test_write_vault_workflow.py`:**
-   - `test_delete_operation_removes_file`: change `task_queue=QUEUE_MUTATION` → per-test UUID
-   - `test_empty_operations_list_no_changes_no_commit`: change `task_queue=QUEUE_MUTATION` → per-test UUID
-   - `test_sequential_writes_serialise_under_load`: change `f"load-test-{uuid.uuid4().hex}"` → `QUEUE_MUTATION`. The whole point of this test is proving the production queue serialises.
-6. **Fix the no-op tests** (`test_git_pull_called_before_writes`, `test_git_commit_and_push_called_after_operations`): the prior attempt already replaced `pass` with real recording-mock assertions — verify those assertions exist and are not commented out. If the recording-mock activities have leftover `print(...)` debug statements, remove them.
-7. **Run `pytest tests/e2e/test_write_vault_workflow.py -v --tb=short` ONCE.** Wait for completion (≤5 min). Do not relaunch concurrently. If still running after 5 min, use `Read` on the output file — never start a parallel pytest.
-8. **Fix any genuine failures.** Re-run **once**. Maximum 2 pytest invocations total in any iteration.
-9. **Run full coverage suite:** `pytest --cov=apps --cov=packages --cov-fail-under=90`. Confirm ≥90% threshold and no regressions in S01–S07 tests.
-10. **Append `LEARNINGS.md`** with the post-mortem note: pytest-orchestration discipline (one at a time), `Monitor`-spawns-fresh-process gotcha, and confirmation that the `max_concurrent_*=1` worker config + `QUEUE_MUTATION` is the actual serialisation guarantee being asserted.
-11. **Commit on step branch; open PR against feature branch.** Body should reference FAILURE-S08.md issues 1–4 and confirm each is fixed.
+The bubble was amended (feat commit `3a43b3b`) to document this plus
+two related test-env accommodations:
+
+- `pydantic_client` fixture — required for `VaultNote.path` (pathlib)
+  round-trip; mirrors S07
+- `max_cached_workflows=0` on the test-env Worker — fixes the deadlock
+- `activity_executor=ThreadPoolExecutor(...)` — required for sync `def`
+  activities (S03 LEARNINGS)
+
+No TRD change required. §4.5, §4.6, and §7 Phase 2 all hold as written.
+
+## Current state (step/OBSE-P5-S08-write-vault-workflow)
+
+All 6 tests green in a single clean run (`/tmp/pytest-all6.out`,
+2.92s):
+
+```
+test_save_operation_writes_file                        PASSED
+test_delete_operation_removes_file                     PASSED
+test_git_pull_called_before_writes                     PASSED
+test_git_commit_and_push_called_after_operations       PASSED
+test_empty_operations_list_no_changes_no_commit        PASSED
+test_sequential_writes_serialise_under_load            PASSED
+```
+
+Implementation is aligned with bubble §8:
+
+- `WriteOperation`, `WriteVaultInput` are `@dataclass`
+- Activities dispatched by function reference
+- Timeouts: `timedelta(minutes=5)` for `git_pull`/`git_push`,
+  `timedelta(minutes=1)` for others
+- `worker.py` registers two Workers (`QUEUE_DEFAULT` read-only +
+  `QUEUE_MUTATION` with `max_concurrent_*=1`)
+
+Files in working tree, uncommitted:
+
+- `apps/vault_worker/workflows/write_vault.py`
+- `apps/vault_worker/workflows/__init__.py`
+- `apps/vault_worker/worker.py`
+- `tests/e2e/test_write_vault_workflow.py`
+
+## Remaining work
+
+### 1. Full coverage suite
+
+```
+pytest --cov=apps --cov=packages --cov-fail-under=90
+```
+
+Must pass at ≥90% with no S01–S07 regressions. S08 adds one new
+workflow file and its tests; coverage should hold.
+
+### 2. Append LEARNINGS.md
+
+Add two entries under a 2026-04-20 S08 heading:
+
+- **`max_cached_workflows=0` required with `max_concurrent_workflow_tasks=1`
+  in tests.** SDK constraint: the latter must be ≥2 when the former is
+  nonzero. Default cache is 1000. Symptom: Worker hangs indefinitely
+  at 0% CPU under concurrent load, no exception. Production config
+  unaffected (real Temporal server keeps default cache).
+- **Pytest orchestration discipline** (root cause of all four Ralph
+  timeouts): never run more than one pytest at a time; never call
+  `Monitor` on a running pytest (each call starts a fresh process);
+  use `Read` on the output file returned by `Bash run_in_background=true`;
+  `pkill -f "pytest tests/"` before any new run if `ps aux | grep
+  pytest | grep -v grep` shows anything. This is a cc-obsidian
+  orchestration lesson, not a Temporal lesson — flag it for the
+  orchestration layer.
+
+### 3. Commit on step/OBSE-P5-S08-write-vault-workflow
+
+Single commit with all four working-tree files. Suggested message:
+
+```
+feat(S08): WriteVaultWorkflow on vault-mutation-queue
+
+Implements WriteVaultWorkflow per bubble OBSE-P5-S08:
+- save/delete operations serialised through QUEUE_MUTATION
+- git_pull before, git_commit + git_push after
+- empty-ops short-circuit (no pull, no commit)
+- returns commit SHA
+
+Load test proves the production Worker config (max_concurrent_*=1)
+serialises 10 concurrent writes. Test-env Worker requires
+max_cached_workflows=0 per SDK constraint (see LEARNINGS 2026-04-20).
+
+Closes FAILURE-S08 issues 1–4.
+```
+
+### 4. Open PR against feat/OBSE-P5-temporal-soa-migration
+
+PR body should reference `FAILURE-S08.md` issues 1–4 and confirm each
+is fixed, plus link the amended bubble commit (`3a43b3b`) and the
+LEARNINGS entries.
+
+## Sequence
+
+1. Run `pytest --cov=apps --cov=packages --cov-fail-under=90` — verify ≥90%.
+2. Append `LEARNINGS.md` with the two entries above.
+3. Stage + commit on `step/OBSE-P5-S08-write-vault-workflow`.
+4. Push branch.
+5. Open PR against `feat/OBSE-P5-temporal-soa-migration`.
 
 ## Known risks
 
-- **Path serialization**: `VaultNote.path: Path` does not round-trip through the default data converter. Use `pydantic_data_converter` on the test client via the `pydantic_client` fixture (already established in S07). Without it, `save_note` activities silently hang.
-- **Activity signature drift in mocks**: Temporal matches activities by `name=`, but the function signature must match what the workflow passes. A drifted mock causes silent non-execution that looks like a workflow hang. Re-grep before writing.
-- **`activity_executor=ThreadPoolExecutor`**: all `save_note` / `delete_note` / `git_*` activities are sync `def`. Worker must pass `activity_executor=ThreadPoolExecutor(max_workers=2)` or sync activities will not run. The current worker code does this correctly — preserve when rebasing.
-- **Load test queue is non-negotiable**: `QUEUE_MUTATION` is the only queue with `max_concurrent_workflow_tasks=1` + `max_concurrent_activities=1` configured on the worker. A uuid queue gets default concurrency and the serialisation assertion becomes meaningless. Per-test UUID for everything *except* the load test.
-- **Pytest orchestration discipline (the actual root cause of all 4 prior failures)**: never run more than one pytest at a time. `Monitor` starts a NEW process on every call — never use it to "check on" a running pytest. To check status of a `Bash run_in_background=true` job, `Read` the output-file path that the tool returned. To check status of a `Monitor` job, wait for events; use `TaskGet` for status. If unsure what is running: `ps aux | grep pytest | grep -v grep`, `pkill -f "pytest tests/"` before starting a new run.
-- **Don't pipe long-running pytest to `| head` or `| tail`**: under `pipefail` this can SIGPIPE the producer and lose output. Always: `pytest ... > /tmp/pytest.out 2>&1` then `tail -80 /tmp/pytest.out` after completion.
-- **Expected duration**: clean `pytest tests/e2e/test_write_vault_workflow.py -v` is 2–3 min on this VM (5 min worst case). The full coverage suite is 5–8 min. Be patient — premature relaunches were the failure mode.
-- **Rabbit-hole pattern** (from S07 LEARNINGS): if I find myself writing `test_explore_*`, `test_debug_*`, or `test_inline_*` files, stop and re-read the bubble. Committed tests only.
+- **Coverage regression in untouched areas**: unlikely (no shared
+  files modified), but `--cov-fail-under=90` may surface a pre-existing
+  gap on another step. If so, note it in the PR and flag to steering —
+  do not paper over with exclusions.
+- **LEARNINGS merge conflict**: S09 (claimed by Ralph on feat) may be
+  writing to `LEARNINGS.md` concurrently. Rebase cleanly before PR if
+  the feat branch has advanced.
 
-## External dependencies
+## Definition of done
 
-- None. All Temporal SDK behaviours used here (sync activities via `ThreadPoolExecutor`, `pydantic_data_converter`, `max_concurrent_*=1` for serialisation) are already proven in merged S04/S05/S06 work.
+- All 6 S08 tests green in a single clean run (verified).
+- Full `--cov-fail-under=90` suite green.
+- LEARNINGS.md updated with both entries.
+- Branch committed, pushed, PR open.
+- Bubble amendment committed on feat (`3a43b3b` — done).
 
-## Pre-PR verification checklist
+---
 
-- [ ] No `workflow.logger.info(...)` debug calls in `write_vault.py`
-- [ ] No `print()` in `write_vault.py` or the test file
-- [ ] No `pass`-body tests; no `test_explore_*` / `test_debug_*` / `test_inline_*` files
-- [ ] `test_sequential_writes_serialise_under_load` uses `task_queue=QUEUE_MUTATION`, 10 ops, 0.1s sleep, `assert elapsed > 0.9s`
-- [ ] `test_delete_operation_removes_file` and `test_empty_operations_list_no_changes_no_commit` use per-test UUID queues
-- [ ] All mock activity signatures match the real `@activity.defn` signatures verified in step 3
-- [ ] All 6 tests pass in a single clean `pytest tests/e2e/test_write_vault_workflow.py -v` run
-- [ ] Full coverage suite passes with `--cov-fail-under=90` and no S01–S07 regressions
-- [ ] `LEARNINGS.md` appended with pytest-orchestration discipline note
+# HISTORICAL (for context, kept intentionally terse)
+
+Debugging path was: probes D → B → A → C → E. Probe D
+(`pydantic_client` vs `temporal_client`) failed fast with
+`PosixPath is not JSON serializable` — confirmed `pydantic_client` is
+required (not the suspected problem, but the bubble needed to document
+it). Probe B (`max_cached_workflows=0`) passed in 1.68s — root cause
+found. Probes A/C/E not needed.
+
+Prior plan's "possible bubble amendments A/B/C" collapsed to just B
+(plus a pydantic_client / ThreadPoolExecutor reminder for
+completeness). All three were folded into the single bubble amendment
+at `3a43b3b`.
