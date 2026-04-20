@@ -162,3 +162,15 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S07 rejection — 2026-04-19T21:06:33Z
 - REJECTION: workflow uses signal instead of execute_update; violates AC#1/AC#2 and TRD §4.6 Update contract; stub has duplicated signal+update handlers masking the bug
+## S08 — WriteVaultWorkflow — 2026-04-20
+- `max_concurrent_workflow_tasks=1` on a test-env Worker requires `max_cached_workflows=0` — SDK constraint is "must be at least 2 if max_cached_workflows is nonzero" and the default cache is 1000. Symptom of the mismatch: Worker hangs indefinitely at 0% CPU under concurrent load with no exception surfaced. Fix is test-env only — the production `vault-mutation-queue` Worker runs against a real Temporal server and keeps the default cache, so TRD §4.5 does not change
+- The sequential-guarantee load test must use `QUEUE_MUTATION` (production task queue name), not a per-test uuid queue — a uuid queue with default concurrency makes the serialisation assertion meaningless
+- Mock activities for the load test must be registered under the **real activity names** via `@activity.defn(name="save_note")` etc. — `WriteVaultWorkflow` dispatches activities by name, so same-named mocks are picked up transparently without editing workflow code
+- `create_workers(client)` wiring (two-Worker registration on QUEUE_DEFAULT + QUEUE_MUTATION) is unit-testable against the session `temporal_client` fixture — but only one `create_workers()` call per client, because Temporal bridge forbids multiple Worker registrations on the same task queue within a client
+
+## Pytest orchestration discipline — 2026-04-20
+- **One pytest at a time.** Never launch a second `pytest` invocation while another is running. The first sign of trouble in this session was a stuck subprocess from a prior parallel invocation
+- Never call `Monitor` on a running pytest — each Monitor call spawns a fresh pytest process; use `Read` on the output file returned by `Bash run_in_background=true` instead
+- Before any new pytest run: `ps aux | grep pytest | grep -v grep`. If anything shows, `pkill -f "pytest tests/"` before starting
+- The `pytest-timeout` plugin is not installed in this repo — `--timeout=N` is silently accepted as a bad arg. Use the Bash tool's `timeout` parameter (milliseconds) and manual `pkill` for aborts instead
+- This is an orchestration lesson, not a Temporal lesson — flag it for the cc-obsidian agent layer (Ralph watchdog), not future step bubbles
