@@ -9,7 +9,7 @@ tags: [ type/bubble ]
 ## LLM Instructions
 
 **Role:** You are a Senior Python Engineer migrating vault I/O logic to Temporal Activities.
-**Objective:** Extract the vault read/write/scan operations from `src_v2/infrastructure/file_system/adapters.py` and expose them as individual Temporal `@activity.defn` functions in `apps/vault-worker/activities/vault_io.py`. Each Activity must be independently testable against the Dummy Vault.
+**Objective:** Extract the vault read/write/scan operations from `src_v2/infrastructure/file_system/adapters.py` and expose them as individual Temporal `@activity.defn` functions in `apps/vault_worker/activities/vault_io.py`. Each Activity must be independently testable against the Dummy Vault.
 **Constraints:**
 - Python 3.12
 - Each Activity is a **synchronous `def` function** (not `async def`, not a class method). `pathlib` and `python-frontmatter` are blocking I/O libraries. Defining the Activity as `def` causes Temporal to execute it automatically in a `ThreadPoolExecutor`, keeping the asyncio event loop free. Do not use `async def` — it would block the event loop during file reads and prevent the worker from processing signals or picking up other tasks.
@@ -39,7 +39,7 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/vault_io.py` — all Activities below, each decorated with `@activity.defn`
+- [ ] `apps/vault_worker/activities/vault_io.py` — all Activities below, each decorated with `@activity.defn`
 - [ ] `tests/unit/test_vault_io.py` — unit tests for every Activity
 
 **Activities to implement:**
@@ -75,7 +75,7 @@ tags: [ type/bubble ]
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/activities/vault_io.py`, `tests/unit/test_vault_io.py`
+**May modify:** `apps/vault_worker/activities/vault_io.py`, `tests/unit/test_vault_io.py`
 **Must not modify:** `packages/shared/`, `tests/fixtures/`, `tests/conftest.py`, `tests/mocks/`
 
 ---
@@ -91,7 +91,7 @@ tags: [ type/bubble ]
 
 ## 7. Step-by-Step Plan
 
-1. Create `apps/vault-worker/activities/__init__.py` and `apps/vault-worker/activities/vault_io.py` (empty stubs).
+1. Create `apps/vault_worker/activities/__init__.py` and `apps/vault_worker/activities/vault_io.py` (empty stubs).
 2. Write all test stubs in `tests/unit/test_vault_io.py`. Each test uses `dummy_vault_path` fixture as vault root. Tests fail (functions not implemented).
 3. Implement Activities in dependency order: `read_note` → `save_note` → `delete_note` → `list_notes_in` → `read_raw` (these are pure I/O). Pass their tests. Commit.
 4. Implement `validate_note` and `scan_vault` (require scoring logic from `src_v2`). Port the `_validate_note` rules directly. Pass their tests. Commit.

@@ -39,7 +39,7 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/git_ops.py` — four Activities
+- [ ] `apps/vault_worker/activities/git_ops.py` — four Activities
 - [ ] `tests/unit/test_git_ops.py` — tests using a local bare repo fixture
 
 **Activities to implement:**
@@ -67,8 +67,8 @@ tags: [ type/bubble ]
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/activities/git_ops.py`, `tests/unit/test_git_ops.py`, `tests/conftest.py` (to add `local_bare_repo` fixture)
-**Must not modify:** `apps/vault-worker/activities/vault_io.py`, `packages/`, `tests/fixtures/`
+**May modify:** `apps/vault_worker/activities/git_ops.py`, `tests/unit/test_git_ops.py`, `tests/conftest.py` (to add `local_bare_repo` fixture)
+**Must not modify:** `apps/vault_worker/activities/vault_io.py`, `packages/`, `tests/fixtures/`
 
 ---
 

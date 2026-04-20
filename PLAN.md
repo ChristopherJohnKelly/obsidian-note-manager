@@ -19,10 +19,11 @@ feat/OBSE-P5-temporal-soa-migration
 | S10 | NightWatchmanWorkflow       | step/OBSE-P5-S10-night-watchman-workflow       | S06,S07,S08     | queued  | —   | 0        |            |
 | S11 | FilerIngestionWorkflow      | step/OBSE-P5-S11-filer-ingestion-workflow      | S06,S07,S08     | queued  | —   | 0        |            |
 | S12 | CopilotSessionWorkflow      | step/OBSE-P5-S12-copilot-session-workflow      | S06,S07         | queued  | —   | 0        |            |
-| S13 | GitHub Runner Refactor      | step/OBSE-P5-S13-github-runner-refactor        | S10,S11,S12     | queued  | —   | 0        |            |
-| S14 | Copilot UI Refactor         | step/OBSE-P5-S14-copilot-ui-refactor           | S11,S12         | queued  | —   | 0        |            |
-| S15 | CI/CD Pipeline              | step/OBSE-P5-S15-ci-cd-pipeline                | S13,S14         | queued  | —   | 0        |            |
-| S16 | Production Docker Compose   | step/OBSE-P5-S16-production-docker-compose     | S09,S13,S14,S15 | queued  | —   | 0        |            |
+| S13 | GitHub Runner Refactor      | step/OBSE-P5-S13-github-runner-refactor        | S10,S11,S12,S17 | queued  | —   | 0        |            |
+| S14 | Copilot UI Refactor         | step/OBSE-P5-S14-copilot-ui-refactor           | S11,S12,S17     | queued  | —   | 0        |            |
+| S15 | CI/CD Pipeline              | step/OBSE-P5-S15-ci-cd-pipeline                | S13,S14,S17     | queued  | —   | 0        |            |
+| S16 | Production Docker Compose   | step/OBSE-P5-S16-production-docker-compose     | S09,S13,S14,S15,S17 | queued | — | 0       |            |
+| S17 | Monorepo Path Hygiene       | step/OBSE-P5-S17-monorepo-path-hygiene         | —               | queued  | —   | 0        |            |
 
 ## Status Transitions
 
@@ -37,5 +38,6 @@ review ──► queued           (cc-obsidian rejects; resets for retry)
 - S04, S05 can run in parallel (both depend only on S03)
 - S07, S08, S09 can run in parallel (all depend on S04+S05)
 - S10, S11, S12 can run in parallel once their dependencies are met
-- S13, S14 can run in parallel (both depend on S11+S12; S13 also needs S10)
+- S13, S14 can run in parallel (both depend on S11+S12+S17; S13 also needs S10)
 - S16 is the final integration step; requires all prior steps complete
+- S17 is a mechanical hygiene bubble with no upstream dependencies — it can run at any time and only needs to ship before S13/S14 begin. S08 and S09 do NOT depend on S17 (their bubble paths are already correct).

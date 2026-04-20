@@ -31,8 +31,8 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/activities/vault_io.py`
-- `apps/vault-worker/activities/git_ops.py`
+- `apps/vault_worker/activities/vault_io.py`
+- `apps/vault_worker/activities/git_ops.py`
 - `packages/shared/models.py` — `VaultContext`, `VaultNote`
 - `packages/shared/workflow_names.py` — queue, update, and workflow name constants (`UPD_ENSURE_SYNCED` must be present)
 - `tests/conftest.py`
@@ -41,8 +41,8 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/workflows/read_vault.py` — `ReadVaultWorkflow`
-- [ ] `apps/vault-worker/activities/vault_manager_client.py` — `ensure_vault_synced` activity + `configure_client()` injector
+- [ ] `apps/vault_worker/workflows/read_vault.py` — `ReadVaultWorkflow`
+- [ ] `apps/vault_worker/activities/vault_manager_client.py` — `ensure_vault_synced` activity + `configure_client()` injector
 - [ ] `tests/e2e/test_read_vault_workflow.py`
 - [ ] `packages/shared/workflow_names.py` — `UPD_ENSURE_SYNCED = "ensure_synced"` present
 
@@ -88,8 +88,8 @@ async def ensure_vault_synced(manager_id: str) -> None:
 ## 5. Scope Boundary
 
 **May modify:**
-- `apps/vault-worker/workflows/read_vault.py`
-- `apps/vault-worker/activities/vault_manager_client.py` (new)
+- `apps/vault_worker/workflows/read_vault.py`
+- `apps/vault_worker/activities/vault_manager_client.py` (new)
 - `tests/e2e/test_read_vault_workflow.py`
 - `packages/shared/workflow_names.py` (ensure `UPD_ENSURE_SYNCED` present; any leftover `SIG_ENSURE_SYNCED`/`SIG_SYNC_ACK` from prior attempts must be removed)
 
@@ -112,7 +112,7 @@ async def ensure_vault_synced(manager_id: str) -> None:
 ## 7. Step-by-Step Plan
 
 1. Ensure `packages/shared/workflow_names.py` has `UPD_ENSURE_SYNCED = "ensure_synced"` in the Update names section (remove any stale `SIG_ENSURE_SYNCED`/`SIG_SYNC_ACK` from prior attempts).
-2. Write `apps/vault-worker/activities/vault_manager_client.py` with `configure_client()` + `_get_client()` injection and the `ensure_vault_synced` activity.
+2. Write `apps/vault_worker/activities/vault_manager_client.py` with `configure_client()` + `_get_client()` injection and the `ensure_vault_synced` activity.
 3. Write `tests/e2e/test_read_vault_workflow.py` covering all acceptance criteria. Define `VaultManagerStub` (happy) and `FailingVaultManagerStub` (update raises) inline. The `pydantic_client` fixture must call `configure_client(client)` so the activity can reach the test server. Tests fail (workflow not defined).
 4. Define `ReadVaultInput` dataclass and the `ReadVaultWorkflow` skeleton. Tests still fail (workflow body empty).
 5. Implement the activity call and the Activity chain: `ensure_vault_synced` → `get_skeleton` → `get_code_registry` → `read_note` (root note) → `list_notes_in` (related notes). Pass all tests.

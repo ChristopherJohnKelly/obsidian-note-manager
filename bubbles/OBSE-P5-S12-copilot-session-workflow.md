@@ -31,9 +31,9 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/workflows/read_vault.py`
-- `apps/vault-worker/activities/llm.py`
-- `apps/vault-worker/activities/vault_io.py`
+- `apps/vault_worker/workflows/read_vault.py`
+- `apps/vault_worker/activities/llm.py`
+- `apps/vault_worker/activities/vault_io.py`
 - `packages/shared/models.py` — `ChatMessage`, `VaultContext`
 - `packages/shared/workflow_names.py` — Signal/Query name constants
 - `tests/mocks/fake_llm.py` — extend with `generate_react_response()` (direct and tool-call variants)
@@ -42,9 +42,9 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/llm.py` — add `generate_chat_response(messages: list[ChatMessage]) -> str` Activity. This is a new synchronous `def` Activity (same `def` rule as other LLM Activities). `generate_proposal` and `generate_fix` are for structured vault operations; `generate_chat_response` is the general-purpose ReAct loop LLM call. Add corresponding `FakeLLMProvider` method to `tests/mocks/fake_llm.py`.
-- [ ] `apps/vault-worker/workflows/copilot_session.py` — `CopilotSessionWorkflow` with ReAct loop
-- [ ] `apps/vault-worker/core/react_parser.py` — parses LLM output into `DirectResponse | ToolCall`
+- [ ] `apps/vault_worker/activities/llm.py` — add `generate_chat_response(messages: list[ChatMessage]) -> str` Activity. This is a new synchronous `def` Activity (same `def` rule as other LLM Activities). `generate_proposal` and `generate_fix` are for structured vault operations; `generate_chat_response` is the general-purpose ReAct loop LLM call. Add corresponding `FakeLLMProvider` method to `tests/mocks/fake_llm.py`.
+- [ ] `apps/vault_worker/workflows/copilot_session.py` — `CopilotSessionWorkflow` with ReAct loop
+- [ ] `apps/vault_worker/core/react_parser.py` — parses LLM output into `DirectResponse | ToolCall`
 - [ ] `tests/unit/test_react_parser.py`
 - [ ] `tests/e2e/test_copilot_session_workflow.py` — three tests (single-turn, tool-use, multi-turn)
 
@@ -92,8 +92,8 @@ class CopilotSessionWorkflow:
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/activities/llm.py` (add `generate_chat_response` only), `apps/vault-worker/workflows/copilot_session.py`, `apps/vault-worker/core/react_parser.py`, `tests/unit/test_react_parser.py`, `tests/e2e/test_copilot_session_workflow.py`, `tests/mocks/fake_llm.py` (extend only, do not break existing tests)
-**Must not modify:** `apps/vault-worker/workflows/read_vault.py`, `apps/vault-worker/workflows/write_vault.py`, `packages/shared/`, other workflow files, other Activity files
+**May modify:** `apps/vault_worker/activities/llm.py` (add `generate_chat_response` only), `apps/vault_worker/workflows/copilot_session.py`, `apps/vault_worker/core/react_parser.py`, `tests/unit/test_react_parser.py`, `tests/e2e/test_copilot_session_workflow.py`, `tests/mocks/fake_llm.py` (extend only, do not break existing tests)
+**Must not modify:** `apps/vault_worker/workflows/read_vault.py`, `apps/vault_worker/workflows/write_vault.py`, `packages/shared/`, other workflow files, other Activity files
 
 ---
 

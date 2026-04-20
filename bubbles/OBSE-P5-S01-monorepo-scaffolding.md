@@ -41,10 +41,10 @@ tags: [ type/bubble ]
 - [ ] `packages/shared/__init__.py`
 - [ ] `packages/shared/models.py` — all domain models from TRD Section 4.7
 - [ ] `packages/shared/workflow_names.py` — workflow/signal/query name constants
-- [ ] `apps/vault-worker/pyproject.toml` — depends on `obsidian-shared`
-- [ ] `apps/vault-worker/__init__.py`
-- [ ] `apps/copilot-ui/pyproject.toml` — depends on `obsidian-shared`
-- [ ] `apps/github-runner/pyproject.toml` — depends on `obsidian-shared`
+- [ ] `apps/vault_worker/pyproject.toml` — depends on `obsidian-shared`
+- [ ] `apps/vault_worker/__init__.py`
+- [ ] `apps/copilot_ui/pyproject.toml` — depends on `obsidian-shared`
+- [ ] `apps/github_runner/pyproject.toml` — depends on `obsidian-shared`
 - [ ] `tests/pyproject.toml` or root `pyproject.toml` — test runner config, including a `[project.optional-dependencies] dev = [...]` block containing at minimum: `pytest`, `pytest-asyncio`, `pytest-cov`, `python-frontmatter`. **`pytest-asyncio` is required here** — S03 sets `asyncio_mode = "auto"` which is a `pytest-asyncio` setting and will fail silently if the package is absent.
 - [ ] `tests/__init__.py`
 - [ ] `tests/test_models.py` — unit tests for every model in `shared/models.py`
@@ -54,7 +54,7 @@ tags: [ type/bubble ]
 ## 4. Acceptance Criteria
 
 - [ ] `pip install -e packages/shared` completes without error
-- [ ] `pip install -e apps/vault-worker` completes without error
+- [ ] `pip install -e apps/vault_worker` completes without error
 - [ ] Every model in `shared/models.py` can be instantiated with minimal valid arguments
 - [ ] Every model rejects clearly invalid input (e.g., wrong types) with a Pydantic validation error
 - [ ] `pytest tests/test_models.py` passes with ≥ 90% coverage of `shared/models.py`

@@ -13,7 +13,7 @@ tags: [ type/bubble ]
 **Constraints:**
 - Python 3.12
 - Workflow code is deterministic — sorting, scoring comparison, and list slicing are all deterministic operations and may live in the workflow; non-deterministic work (file reads, LLM calls) delegates to Activities
-- GitHub PR creation is a new Activity `create_github_pr` in a new `apps/vault-worker/activities/github_ops.py` — it uses the `PyGithub` library. `PyGithub` is synchronous and blocking; define the Activity as a **synchronous `def` function** so Temporal runs it in the ThreadPoolExecutor.
+- GitHub PR creation is a new Activity `create_github_pr` in a new `apps/vault_worker/activities/github_ops.py` — it uses the `PyGithub` library. `PyGithub` is synchronous and blocking; define the Activity as a **synchronous `def` function** so Temporal runs it in the ThreadPoolExecutor.
 - PR creation must be tested with a mock GitHub client (no real API calls in tests)
 - The workflow processes fix proposals sequentially (one LLM call at a time) to avoid hammering the API
 
@@ -31,10 +31,10 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/workflows/read_vault.py`
-- `apps/vault-worker/workflows/write_vault.py`
-- `apps/vault-worker/activities/llm.py`
-- `apps/vault-worker/activities/vault_io.py`
+- `apps/vault_worker/workflows/read_vault.py`
+- `apps/vault_worker/workflows/write_vault.py`
+- `apps/vault_worker/activities/llm.py`
+- `apps/vault_worker/activities/vault_io.py`
 - `packages/shared/models.py` — `ValidationResult`, `AuditProposal`
 - `tests/fixtures/dummy_vault/` — Dummy Vault with known violations
 - `tests/mocks/fake_llm.py`
@@ -43,9 +43,9 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/github_ops.py` — `create_github_pr` Activity
+- [ ] `apps/vault_worker/activities/github_ops.py` — `create_github_pr` Activity
 - [ ] `tests/mocks/fake_github.py` — `FakeGitHubClient` with mock PR creation
-- [ ] `apps/vault-worker/workflows/night_watchman.py` — `NightWatchmanWorkflow`
+- [ ] `apps/vault_worker/workflows/night_watchman.py` — `NightWatchmanWorkflow`
 - [ ] `tests/e2e/test_night_watchman_workflow.py`
 
 **Workflow interface:**
@@ -86,8 +86,8 @@ class NightWatchmanWorkflow:
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/workflows/night_watchman.py`, `apps/vault-worker/activities/github_ops.py`, `tests/mocks/fake_github.py`, `tests/e2e/test_night_watchman_workflow.py`
-**Must not modify:** `apps/vault-worker/workflows/read_vault.py`, `apps/vault-worker/workflows/write_vault.py`, LLM/git/vault_io Activity files, `packages/shared/`
+**May modify:** `apps/vault_worker/workflows/night_watchman.py`, `apps/vault_worker/activities/github_ops.py`, `tests/mocks/fake_github.py`, `tests/e2e/test_night_watchman_workflow.py`
+**Must not modify:** `apps/vault_worker/workflows/read_vault.py`, `apps/vault_worker/workflows/write_vault.py`, LLM/git/vault_io Activity files, `packages/shared/`
 
 ---
 
@@ -122,7 +122,7 @@ for result in sorted_results[:10]:
             generate_fix,
             args=[note, result.reasons, context],  # note: VaultNote, context: VaultContext
             schedule_to_close_timeout=timedelta(minutes=5),
-            retry_policy=LLM_RETRY_POLICY,  # imported from apps/vault-worker/activities/llm.py
+            retry_policy=LLM_RETRY_POLICY,  # imported from apps/vault_worker/activities/llm.py
         )
         proposals.append(fix)
     except ActivityError:

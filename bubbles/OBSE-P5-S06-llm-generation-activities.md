@@ -40,9 +40,9 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/activities/llm.py` — two Activities with retry policies
-- [ ] `apps/vault-worker/activities/llm_provider.py` — `GeminiProvider` (real) and an abstract base; `FakeLLMProvider` in tests implements the same base
-- [ ] `apps/vault-worker/core/response_parser.py` — copied/migrated from `src_v2` (the parser is pure logic, no framework dependencies)
+- [ ] `apps/vault_worker/activities/llm.py` — two Activities with retry policies
+- [ ] `apps/vault_worker/activities/llm_provider.py` — `GeminiProvider` (real) and an abstract base; `FakeLLMProvider` in tests implements the same base
+- [ ] `apps/vault_worker/core/response_parser.py` — copied/migrated from `src_v2` (the parser is pure logic, no framework dependencies)
 - [ ] `tests/unit/test_llm_activities.py` — tests using Fake LLM
 
 **Activities:**
@@ -66,7 +66,7 @@ tags: [ type/bubble ]
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/activities/llm.py`, `apps/vault-worker/activities/llm_provider.py`, `apps/vault-worker/core/response_parser.py`, `tests/unit/test_llm_activities.py`
+**May modify:** `apps/vault_worker/activities/llm.py`, `apps/vault_worker/activities/llm_provider.py`, `apps/vault_worker/core/response_parser.py`, `tests/unit/test_llm_activities.py`
 **Must not modify:** `tests/mocks/fake_llm.py` (interface is fixed from S02), `packages/shared/`, vault_io or git_ops Activities
 
 ---
@@ -81,7 +81,7 @@ tags: [ type/bubble ]
 
 ## 7. Step-by-Step Plan
 
-1. Copy `response_parser.py` from `src_v2/core/` into `apps/vault-worker/core/`. Write `tests/unit/test_response_parser.py`. Run — tests should pass (this is pure logic with no framework dependencies).
+1. Copy `response_parser.py` from `src_v2/core/` into `apps/vault_worker/core/`. Write `tests/unit/test_response_parser.py`. Run — tests should pass (this is pure logic with no framework dependencies).
 2. Define the abstract LLM provider base in `llm_provider.py`. Verify `FakeLLMProvider` from `tests/mocks/` implements the same interface (if not, align them).
 3. Write `tests/unit/test_llm_activities.py` covering all acceptance criteria. Run — tests fail (Activities not implemented).
 4. Implement `generate_proposal` with retry policy. Pass its tests.

@@ -31,9 +31,9 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/workflows/read_vault.py`
-- `apps/vault-worker/workflows/write_vault.py`
-- `apps/vault-worker/activities/llm.py`
+- `apps/vault_worker/workflows/read_vault.py`
+- `apps/vault_worker/workflows/write_vault.py`
+- `apps/vault_worker/activities/llm.py`
 - `packages/shared/models.py` — `FilingProposal`
 - `packages/shared/workflow_names.py` — Signal/Query name constants
 - `tests/fixtures/dummy_vault/00. Inbox/0. Capture/new-capture-note.md` — test input
@@ -42,7 +42,7 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/vault-worker/workflows/filer_ingestion.py` — `FilerIngestionWorkflow`
+- [ ] `apps/vault_worker/workflows/filer_ingestion.py` — `FilerIngestionWorkflow`
 - [ ] `tests/e2e/test_filer_ingestion_workflow.py` — three path tests
 
 **Workflow interface (from TRD Section 4.6):**
@@ -89,8 +89,8 @@ class FilerIngestionWorkflow:
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/vault-worker/workflows/filer_ingestion.py`, `tests/e2e/test_filer_ingestion_workflow.py`
-**Must not modify:** `apps/vault-worker/workflows/read_vault.py`, `apps/vault-worker/workflows/write_vault.py`, Activity files, `packages/shared/`, `tests/fixtures/`
+**May modify:** `apps/vault_worker/workflows/filer_ingestion.py`, `tests/e2e/test_filer_ingestion_workflow.py`
+**Must not modify:** `apps/vault_worker/workflows/read_vault.py`, `apps/vault_worker/workflows/write_vault.py`, Activity files, `packages/shared/`, `tests/fixtures/`
 
 ---
 

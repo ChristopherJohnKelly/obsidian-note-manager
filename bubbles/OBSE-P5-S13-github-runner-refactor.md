@@ -24,7 +24,7 @@ tags: [ type/bubble ]
 **Feature:** TRD Section 6 Phase 4 (Client Integration — github-runner Dumb Trigger), TRD Section 3A (Container Diagram)
 **Depends On:** S10 (NightWatchmanWorkflow), S11 (FilerIngestionWorkflow), S12 (CopilotSessionWorkflow)
 **Current State:** All workflows and activities implemented and tested. The existing runner container still contains the full V1 vault-processing logic.
-**Target State:** `apps/github-runner/` contains a minimal Dockerfile and `trigger.py`. The existing GitHub Actions YAML files delegate to `trigger.py`. The old entrypoints (`ingest_runner.py`, `cron_runner.py`) are no longer called by the runner.
+**Target State:** `apps/github_runner/` contains a minimal Dockerfile and `trigger.py`. The existing GitHub Actions YAML files delegate to `trigger.py`. The old entrypoints (`ingest_runner.py`, `cron_runner.py`) are no longer called by the runner.
 
 ---
 
@@ -40,9 +40,9 @@ tags: [ type/bubble ]
 
 ## 3. Required Output
 
-- [ ] `apps/github-runner/trigger.py` — Temporal Client script
-- [ ] `apps/github-runner/Dockerfile` — minimal image (runner binary + `temporalio` package only)
-- [ ] `apps/github-runner/requirements.txt` — `temporalio`, `python-dotenv`
+- [ ] `apps/github_runner/trigger.py` — Temporal Client script
+- [ ] `apps/github_runner/Dockerfile` — minimal image (runner binary + `temporalio` package only)
+- [ ] `apps/github_runner/requirements.txt` — `temporalio`, `python-dotenv`
 - [ ] `.github/workflows/ingest.yml` — updated to call `trigger.py --workflow FilerIngestionWorkflow --source-path ${{ ... }}`
 - [ ] `.github/workflows/watchman.yml` — new/updated scheduled workflow calling `trigger.py --workflow NightWatchmanWorkflow`
 - [ ] `tests/unit/test_trigger.py` — tests for `trigger.py` CLI logic using a mock Temporal client
@@ -62,8 +62,8 @@ tags: [ type/bubble ]
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/github-runner/`, `.github/workflows/ingest.yml`, `.github/workflows/watchman.yml`, `tests/unit/test_trigger.py`
-**Must not modify:** `apps/vault-worker/`, `apps/copilot-ui/`, `packages/`, `tests/fixtures/`, any workflow Python files
+**May modify:** `apps/github_runner/`, `.github/workflows/ingest.yml`, `.github/workflows/watchman.yml`, `tests/unit/test_trigger.py`
+**Must not modify:** `apps/vault_worker/`, `apps/copilot_ui/`, `packages/`, `tests/fixtures/`, any workflow Python files
 
 ---
 

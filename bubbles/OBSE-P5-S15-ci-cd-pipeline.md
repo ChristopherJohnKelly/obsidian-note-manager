@@ -30,9 +30,9 @@ tags: [ type/bubble ]
 
 ## 2. Input
 
-- `apps/vault-worker/Dockerfile`
-- `apps/copilot-ui/Dockerfile`
-- `apps/github-runner/Dockerfile`
+- `apps/vault_worker/Dockerfile`
+- `apps/copilot_ui/Dockerfile`
+- `apps/github_runner/Dockerfile`
 - `pyproject.toml` — test and coverage config
 
 ---
@@ -48,10 +48,10 @@ tags: [ type/bubble ]
 
 - [ ] `ci.yml` runs `pytest --cov --cov-fail-under=90` and fails the PR if coverage drops below threshold
 - [ ] `ci.yml` uses Python 3.12 and installs all packages in editable mode using dev deps from `pyproject.toml` (not by installing pytest/pytest-asyncio/pytest-cov separately, which risks version drift from the dev environment)
-- [ ] `pyproject.toml` coverage `omit` list includes `apps/copilot-ui/app.py` — Chainlit lifecycle hooks (`@cl.on_chat_start`, `@cl.on_message`, `@cl.action_callback`) cannot be unit-tested and would otherwise prevent the 90% threshold from being reached
+- [ ] `pyproject.toml` coverage `omit` list includes `apps/copilot_ui/app.py` — Chainlit lifecycle hooks (`@cl.on_chat_start`, `@cl.on_message`, `@cl.action_callback`) cannot be unit-tested and would otherwise prevent the 90% threshold from being reached
 - [ ] `build-push.yml` builds `vault-worker`, `copilot-ui`, and `github-runner` images
 - [ ] Each image is tagged `latest` and `{github.sha}`
-- [ ] Image builds are conditional: `vault-worker` only rebuilds if `apps/vault-worker/**` or `packages/shared/**` changed; same pattern for the other two
+- [ ] Image builds are conditional: `vault-worker` only rebuilds if `apps/vault_worker/**` or `packages/shared/**` changed; same pattern for the other two
 - [ ] GHCR login uses `GITHUB_TOKEN` (no external secrets needed for package publish)
 - [ ] A README note documents: how to pull and run each image; what environment variables each container requires
 
@@ -101,8 +101,8 @@ jobs:
       - name: Install packages
         run: |
           pip install -e "packages/shared[dev]"   # installs pytest, pytest-asyncio, pytest-cov from pyproject.toml dev deps
-          pip install -e apps/vault-worker
-          pip install -e apps/copilot-ui
+          pip install -e apps/vault_worker
+          pip install -e apps/copilot_ui
           # Do not pip install pytest separately — use the version pinned in pyproject.toml dev deps
       - name: Test with coverage
         # copilot-ui/app.py (Chainlit lifecycle hooks) is untestable and must be in the omit list
@@ -131,7 +131,7 @@ jobs:
         with:
           filters: |
             changed:
-              - 'apps/vault-worker/**'
+              - 'apps/vault_worker/**'
               - 'packages/shared/**'
       - if: steps.filter.outputs.changed == 'true'
         name: Build and push vault-worker
@@ -139,6 +139,6 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker build -t ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest \
                        -t ghcr.io/christopherjohnkelly/obsidian-vault-worker:${{ github.sha }} \
-                       apps/vault-worker/
+                       apps/vault_worker/
           docker push ghcr.io/christopherjohnkelly/obsidian-vault-worker --all-tags
 ```

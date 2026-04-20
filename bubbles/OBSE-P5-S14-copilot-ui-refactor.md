@@ -23,8 +23,8 @@ tags: [ type/bubble ]
 
 **Feature:** TRD Section 6 Phase 4 (Client Integration — copilot-ui), TRD Section 4.6 (Workflow Interfaces), PRD Section 4 (The Copilot and The Filer use cases)
 **Depends On:** S11 (FilerIngestionWorkflow), S12 (CopilotSessionWorkflow)
-**Current State:** All workflows implemented. `apps/copilot-ui/` contains the old V1 Chainlit app with direct vault and LLM calls.
-**Target State:** `apps/copilot-ui/app.py` is a pure Temporal Client. No `gitpython`, `google-generativeai`, or `frontmatter` imports exist in the copilot-ui package.
+**Current State:** All workflows implemented. `apps/copilot_ui/` contains the old V1 Chainlit app with direct vault and LLM calls.
+**Target State:** `apps/copilot_ui/app.py` is a pure Temporal Client. No `gitpython`, `google-generativeai`, or `frontmatter` imports exist in the copilot-ui package.
 
 ---
 
@@ -33,16 +33,16 @@ tags: [ type/bubble ]
 - `obsidian-note-manager/src_v2/entrypoints/chainlit_app.py` — existing app to replace (read-only)
 - `packages/shared/models.py` — `ChatMessage`, `FilingProposal`
 - `packages/shared/workflow_names.py` — all Signal/Query constants
-- `apps/vault-worker/workflows/copilot_session.py` — workflow interface reference
+- `apps/vault_worker/workflows/copilot_session.py` — workflow interface reference
 
 ---
 
 ## 3. Required Output
 
-- [ ] `apps/copilot-ui/app.py` — new Chainlit app (Temporal Client only)
-- [ ] `apps/copilot-ui/temporal_client.py` — thin wrapper around `temporalio.client.Client` with helper methods
-- [ ] `apps/copilot-ui/requirements.txt` — `chainlit`, `temporalio`, `pydantic` (no vault/LLM dependencies)
-- [ ] `apps/copilot-ui/Dockerfile`
+- [ ] `apps/copilot_ui/app.py` — new Chainlit app (Temporal Client only)
+- [ ] `apps/copilot_ui/temporal_client.py` — thin wrapper around `temporalio.client.Client` with helper methods
+- [ ] `apps/copilot_ui/requirements.txt` — `chainlit`, `temporalio`, `pydantic` (no vault/LLM dependencies)
+- [ ] `apps/copilot_ui/Dockerfile`
 - [ ] `tests/unit/test_copilot_ui.py` — tests for `temporal_client.py` helper methods using a mock Temporal client
 
 ---
@@ -55,15 +55,15 @@ tags: [ type/bubble ]
 - [ ] After sending the Signal, the app polls `get_history` Query until a new assistant message appears, then renders it to the user
 - [ ] A `/approvals` command (or on every chat start) lists pending `FilerIngestionWorkflow` proposals and renders each as a `cl.Message` with `cl.Action` approve/reject buttons. **Note:** `list_pending_filer_proposals()` uses the Temporal Client's `list_workflows` API with a status filter — this requires Temporal Advanced Visibility configured with PostgreSQL (set in `docker-compose.prod.yml`). Without it, the filter silently returns no results. Verify this works end-to-end during the manual smoke test.
 - [ ] Clicking approve sends `approve` Signal to the correct workflow instance; clicking reject sends `reject` Signal
-- [ ] `apps/copilot-ui/requirements.txt` does NOT contain `gitpython`, `google-generativeai`, `frontmatter`, or `GitPython`
+- [ ] `apps/copilot_ui/requirements.txt` does NOT contain `gitpython`, `google-generativeai`, `frontmatter`, or `GitPython`
 - [ ] `temporal_client.py` helper method tests pass (using mock Temporal client)
 
 ---
 
 ## 5. Scope Boundary
 
-**May modify:** `apps/copilot-ui/app.py`, `apps/copilot-ui/temporal_client.py`, `apps/copilot-ui/requirements.txt`, `apps/copilot-ui/Dockerfile`, `tests/unit/test_copilot_ui.py`
-**Must not modify:** `packages/shared/`, `apps/vault-worker/`, `tests/fixtures/`, any workflow or activity files
+**May modify:** `apps/copilot_ui/app.py`, `apps/copilot_ui/temporal_client.py`, `apps/copilot_ui/requirements.txt`, `apps/copilot_ui/Dockerfile`, `tests/unit/test_copilot_ui.py`
+**Must not modify:** `packages/shared/`, `apps/vault_worker/`, `tests/fixtures/`, any workflow or activity files
 
 ---
 
@@ -78,7 +78,7 @@ tags: [ type/bubble ]
 
 1. Write `tests/unit/test_copilot_ui.py` testing `temporal_client.py` helpers: `start_copilot_session()`, `send_user_message()`, `get_chat_history()`, `list_pending_filer_proposals()`, `send_filer_decision()`. Use a mock Temporal client. Run — fail.
 2. Implement `temporal_client.py` with the five helper methods. Pass tests. Commit.
-3. Implement `apps/copilot-ui/app.py`:
+3. Implement `apps/copilot_ui/app.py`:
    - `@cl.on_chat_start`: call `start_copilot_session()`, store workflow ID in session
    - `@cl.on_message`: call `send_user_message()`, poll `get_chat_history()` for new assistant message, display it
    - Approval card rendering via `list_pending_filer_proposals()` + `cl.Action` buttons
