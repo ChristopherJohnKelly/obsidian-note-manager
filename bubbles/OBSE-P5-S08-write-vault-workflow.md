@@ -196,11 +196,22 @@ The serialisation test uses mock activities registered under the **same names** 
 
 `t0` is captured **outside** `asyncio.gather()` to measure true wall-clock elapsed time across all 10 executions. If the queue serialises correctly, elapsed ≈ 10 × 0.1s = 1.0s. If Temporal runs them in parallel (broken), elapsed ≈ 0.1s.
 
+**Test-env accommodations (do not leak into production Worker config — see TRD §4.5):**
+
+- **Client:** Use a `pydantic_client` fixture (Client wrapped with `pydantic_data_converter` — same pattern S07 uses). `VaultNote.path` is a `pathlib.Path`, which the default converter cannot round-trip (see S07 LEARNINGS 2026-04-16).
+- **`max_cached_workflows=0` on the test Worker:** The SDK requires `max_concurrent_workflow_tasks ≥ 2` when `max_cached_workflows` is nonzero (default 1000). Setting `max_cached_workflows=0` on the test Worker avoids a cache-slot / task-slot deadlock under 10 concurrent gathers. The production Worker runs against a real Temporal server (not the time-skipping test harness) and keeps the default cache — do not change TRD §4.5.
+- **`activity_executor=ThreadPoolExecutor(...)`:** Required because `save_note`, `delete_note`, and `git_*` are sync `def` (S03 LEARNINGS). The `max_workers` must be ≥ `max_concurrent_activities` (here: 1).
+
 ```python
 import asyncio, time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
+import pytest_asyncio
 from temporalio import activity
+from temporalio.client import Client
+from temporalio.contrib.pydantic import pydantic_data_converter
+from temporalio.worker import Worker
 from packages.shared.models import VaultNote, Frontmatter
 from packages.shared.workflow_names import QUEUE_MUTATION
 
@@ -225,7 +236,18 @@ SERIALISATION_TEST_ACTIVITIES = [
     timed_save_note, noop_git_pull, noop_git_commit, noop_git_push
 ]
 
-async def test_sequential_writes_serialise_under_load(temporal_client, tmp_path):
+
+# Fixture — VaultNote.path is pathlib.Path; default converter can't round-trip it.
+@pytest_asyncio.fixture
+async def pydantic_client(temporal_client):
+    return Client(
+        service_client=temporal_client.service_client,
+        namespace=temporal_client.namespace,
+        data_converter=pydantic_data_converter,
+    )
+
+
+async def test_sequential_writes_serialise_under_load(pydantic_client, tmp_path):
     """Prove the vault-mutation-queue serialises concurrent WriteVaultWorkflow requests.
 
     Each write includes a 0.1s timed mock activity.
@@ -237,15 +259,19 @@ async def test_sequential_writes_serialise_under_load(temporal_client, tmp_path)
 
     note = VaultNote(path=Path("note.md"), frontmatter=Frontmatter(title="T"), body="b")
 
-    async with Worker(temporal_client, task_queue=QUEUE_MUTATION,
-                      workflows=[WriteVaultWorkflow],
-                      activities=SERIALISATION_TEST_ACTIVITIES,
-                      max_concurrent_workflow_tasks=1,
-                      max_concurrent_activities=1):
-
+    async with Worker(
+        pydantic_client,
+        task_queue=QUEUE_MUTATION,
+        workflows=[WriteVaultWorkflow],
+        activities=SERIALISATION_TEST_ACTIVITIES,
+        max_concurrent_workflow_tasks=1,
+        max_concurrent_activities=1,
+        max_cached_workflows=0,  # test-env only; see "Test-env accommodations" above
+        activity_executor=ThreadPoolExecutor(max_workers=2),
+    ):
         t0 = time.monotonic()  # Outside gather — measures true total wall-clock time
         await asyncio.gather(*[
-            temporal_client.execute_workflow(
+            pydantic_client.execute_workflow(
                 WriteVaultWorkflow.run,
                 WriteVaultInput(
                     vault_path=str(vault),
