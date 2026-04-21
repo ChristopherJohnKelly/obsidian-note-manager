@@ -293,3 +293,20 @@ def get_code_registry(vault_root: str) -> list[CodeRegistryEntry]:
             except Exception:
                 continue
     return entries
+
+
+@activity.defn
+def check_vault_dir_state(vault_path: str) -> str:
+    """Inspect vault_path and return its state.
+
+    Returns: 'empty' | 'valid_repo' | 'invalid'
+
+    Synchronous def: uses pathlib (blocking I/O). Temporal runs in ThreadPoolExecutor.
+    This Activity exists solely so the workflow never touches the filesystem directly.
+    """
+    vault = Path(vault_path)
+    if not vault.exists() or not any(vault.iterdir()):
+        return "empty"
+    if (vault / ".git").exists():
+        return "valid_repo"
+    return "invalid"
