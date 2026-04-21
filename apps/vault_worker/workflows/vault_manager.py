@@ -7,6 +7,7 @@ and calls continue_as_new periodically to prevent history bloat.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from temporalio import workflow
@@ -29,6 +30,10 @@ class VaultManagerWorkflow:
         self._status: str = "initialising"
         self._update_count: int = 0
         self._input: VaultManagerInput | None = None
+        # Python SDK update handlers are coroutines and can interleave at await
+        # points; serialise the stale-check + pull with a Lock so that two
+        # concurrent Updates don't both observe "stale" and fire duplicate pulls.
+        self._sync_lock = asyncio.Lock()
 
     @workflow.update(name=UPD_ENSURE_SYNCED)
     async def ensure_synced(self) -> None:
@@ -37,15 +42,16 @@ class VaultManagerWorkflow:
         if self._status != "ready":
             raise ApplicationError("Vault not yet initialised", non_retryable=True)
 
-        now = workflow.now()  # UTC-aware — always use this, never datetime.now()
-        stale = self._last_synced is None or (now - self._last_synced) > timedelta(minutes=5)
-        if stale:
-            await workflow.execute_activity(
-                "git_pull",
-                args=[self._input.vault_path],
-                schedule_to_close_timeout=timedelta(minutes=5),
-            )
-            self._last_synced = workflow.now()
+        async with self._sync_lock:
+            now = workflow.now()  # UTC-aware — always use this, never datetime.now()
+            stale = self._last_synced is None or (now - self._last_synced) > timedelta(minutes=5)
+            if stale:
+                await workflow.execute_activity(
+                    "git_pull",
+                    args=[self._input.vault_path],
+                    schedule_to_close_timeout=timedelta(minutes=5),
+                )
+                self._last_synced = workflow.now()
 
     @workflow.query
     def get_sync_status(self) -> dict:
@@ -56,7 +62,6 @@ class VaultManagerWorkflow:
 
     @workflow.run
     async def run(self, input: VaultManagerInput) -> None:
-        workflow.logger.info("VaultManagerWorkflow.run started")
         self._input = input
 
         if input.last_synced is not None:
@@ -97,10 +102,15 @@ class VaultManagerWorkflow:
 
         # Running phase: handle ensure_synced Updates indefinitely.
         # continue_as_new daily (or after 1,000 updates) to prevent history bloat.
-        await workflow.wait_condition(
-            lambda: self._update_count >= 1000,
-            timeout=timedelta(days=1),
-        )
+        # wait_condition raises asyncio.TimeoutError on timeout — that is the
+        # normal path to continue_as_new, not a failure.
+        try:
+            await workflow.wait_condition(
+                lambda: self._update_count >= 1000,
+                timeout=timedelta(days=1),
+            )
+        except asyncio.TimeoutError:
+            pass
         workflow.continue_as_new(VaultManagerInput(
             vault_path=input.vault_path,
             repo_url=input.repo_url,

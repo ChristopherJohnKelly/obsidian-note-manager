@@ -304,14 +304,9 @@ def check_vault_dir_state(vault_path: str) -> str:
     Synchronous def: uses pathlib (blocking I/O). Temporal runs in ThreadPoolExecutor.
     This Activity exists solely so the workflow never touches the filesystem directly.
     """
-    import sys
-    print(f"[DEBUG] check_vault_dir_state called with {vault_path}", file=sys.stderr)
     vault = Path(vault_path)
     if not vault.exists() or not any(vault.iterdir()):
-        print(f"[DEBUG] returning empty", file=sys.stderr)
         return "empty"
     if (vault / ".git").exists():
-        print(f"[DEBUG] returning valid_repo", file=sys.stderr)
         return "valid_repo"
-    print(f"[DEBUG] returning invalid", file=sys.stderr)
     return "invalid"
