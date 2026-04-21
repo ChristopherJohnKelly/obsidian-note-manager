@@ -115,3 +115,26 @@ add `pytest.skip`, do **not** rewrite the workflow. Escalating is the
 correct move — this file will be updated with more steering.
 
 ---
+
+
+---
+
+## Ralph attempt — 2026-04-21T09:43:28Z
+
+## Rejection Reason
+temporal-test-environment-hangs
+
+## Trigger
+support (capability gap, not implementation failure)
+
+## What to investigate
+The implementation agent (Ralph) has escalated this step to support status
+because it recognised — or the watchdog recognised on its behalf — that
+further retries on the same model are unlikely to succeed.
+
+A stronger model should review the step branch, LEARNINGS.md, and any
+prior FAILURE file content (above this section, if present), then produce
+concrete next-attempt guidance in this file before Ralph resumes.
+
+## Watchdog triggered?
+No — Claude self-reported
