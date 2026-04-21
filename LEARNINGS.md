@@ -174,3 +174,5 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - Before any new pytest run: `ps aux | grep pytest | grep -v grep`. If anything shows, `pkill -f "pytest tests/"` before starting
 - The `pytest-timeout` plugin is not installed in this repo — `--timeout=N` is silently accepted as a bad arg. Use the Bash tool's `timeout` parameter (milliseconds) and manual `pkill` for aborts instead
 - This is an orchestration lesson, not a Temporal lesson — flag it for the cc-obsidian agent layer (Ralph watchdog), not future step bubbles
+
+## S09 — VaultManagerWorkflow — 2026-04-21
