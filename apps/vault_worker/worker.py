@@ -41,7 +41,10 @@ from apps.vault_worker.activities.llm import (
     generate_proposal,
     generate_fix,
 )
+from apps.vault_worker.activities.github_ops import create_github_pr
 
+from apps.vault_worker.workflows.night_watchman import NightWatchmanWorkflow
+from apps.vault_worker.workflows.read_vault import ReadVaultWorkflow
 from apps.vault_worker.workflows.vault_manager import (
     VaultManagerInput,
     VaultManagerWorkflow,
@@ -54,7 +57,7 @@ def create_workers(client):
     default_worker = Worker(
         client,
         task_queue=QUEUE_DEFAULT,
-        workflows=[VaultManagerWorkflow],
+        workflows=[VaultManagerWorkflow, NightWatchmanWorkflow, ReadVaultWorkflow],
         activities=[
             check_vault_dir_state,
             read_note,
@@ -70,6 +73,7 @@ def create_workers(client):
             git_push,
             generate_proposal,
             generate_fix,
+            create_github_pr,
         ],
         activity_executor=ThreadPoolExecutor(max_workers=2),
     )
