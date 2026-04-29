@@ -35,3 +35,12 @@ verdict.txt
 .plan-snapshot-pre-backout-*.md
 .plan-backout-justification.txt
 .redcheck.output.txt                                                                                                                                                           
+
+# v3 ralph-loop transient artefacts — never commit
+verdict.txt
+.ralph_last_call_meta.env
+.ralph_infra_failure
+.cooldown_S*
+.plan-snapshot-pre-backout-*.md
+.plan-backout-justification.txt
+.redcheck.output.txt
