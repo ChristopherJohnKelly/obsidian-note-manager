@@ -1,4 +1,26 @@
 ---
+step_id: S12
+step_slug: copilot-session-workflow
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S12-copilot-session-workflow.md
+attempts: 0
+bubble_hash: c5e56ef8b30d07440850389bf91fdee203ec414da9121c652b5751a921ec446e
+---
+## Goal
+See the bubble body below (`OBSE-P5-S12-copilot-session-workflow.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S12
@@ -176,3 +198,21 @@ async def run(self, input: CopilotSessionInput) -> None:
         await self._run_react_iteration(msg["content"], input.vault_path)
     self._status = "complete"
 ```
+
+## Steering from prior steps
+- [S03] Use `WorkflowEnvironment.start_time_skipping()` (not `start_local`) for in-process Temporal tests — applicable here because S12's three E2E tests run against the test fixture environment.
+- [S03] Sync `def` Activities need `activity_executor=ThreadPoolExecutor(...)` on the Worker — applicable here because `generate_chat_response` is a new sync `def` LLM Activity that the test Worker must register.
+- [S03] Session-scoped `pytest_asyncio` fixtures require `asyncio_mode = "auto"` in pyproject.toml — applicable here because the long-running session workflow tests share the session client/env fixtures.
+- [S04] Python package path is `apps/vault_worker/` (underscore); the hyphenated dir is Docker-only — applicable here because the bubble's `Required Output` lists `apps/vault_worker/workflows/copilot_session.py` and `core/react_parser.py`.
+- [S04] Use `from packages.shared.models import ...` (the editable install adds `packages/shared` to sys.path) — applicable here because the workflow imports `ChatMessage` and `VaultContext` from `packages/shared/models.py`.
+- [S04/S07] Pydantic models with `Path` fields are not JSON-serialisable under Temporal's default converter; needs `pydantic_data_converter` or string-only returns — applicable here because the ReAct tool dispatch invokes `ReadVaultWorkflow` as a child workflow whose return crosses the boundary.
+- [S06] LLM Activities use module-level `_provider` + `configure_provider()` with an autouse fixture that injects `FakeLLMProvider` and resets after each test — applicable here because `generate_chat_response` must follow the same testability pattern and the bubble extends `FakeLLMProvider` with `generate_react_response`.
+- [S06] FakeLLM placeholders like `{original_path}` are literal — assert on format markers, not substituted values — applicable here because the tool-call fixture string (`TOOL: get_skeleton\nARGS: {}`) must be matched on its prefix, not interpolated content.
+- [S08] Mock activities for E2E tests must register under the real activity names via `@activity.defn(name="...")` — applicable here because the tool-use E2E test dispatches real tools (`get_skeleton`, `get_code_registry`) by name but exercises them through fakes.
+- [S08] `create_workers(client)` may only run once per client — Temporal forbids re-registering the same task queue — applicable here because the E2E suite reuses the session client to register workers spanning default/mutation queues.
+- [S09] `workflow.wait_condition(..., timeout=…)` raises `asyncio.TimeoutError`; must be caught explicitly — applicable here because the bubble's main loop uses `wait_condition` to await pending messages or cancel.
+- [S09] Python `@workflow.update`/handler coroutines interleave at `await` points and are NOT serialised by default — applicable here because the bubble's "concurrent Signals are processed sequentially" AC requires the explicit `_pending_messages` queue + single-iteration main-loop pattern (or an `asyncio.Lock`) rather than relying on handler serialisation.
+- [S09] Use `handle.terminate()` (not `cancel()`) to clean up long-running workflows in test teardown — applicable here because `CopilotSessionWorkflow` runs `while not self._cancelled` with `wait_condition` and will leak timer state across tests if only cancelled.
+- [Orchestration] Scratch/debug tests must use `test_explore_*` (or `test_debug_*`, etc.) prefixes; >3 such files in a session triggers wind-down — applicable here because S12's TDD path (parser unit → 3 E2E tests) is rabbit-hole-prone if signal serialisation or tool dispatch misbehaves.
+- [Orchestration] One `pytest` invocation at a time; check `ps aux | grep pytest` before starting and `pkill -f "pytest tests/"` to clear stuck runs — applicable here because S12 has multiple test phases (parser, then per-AC E2E commits) and prior parallel pytest runs caused hangs.
+- [Persistent] `.gitignore` is append-only — never modify existing entries — applicable here because new test artefacts (e.g. transient session files) may tempt edits to existing patterns.
