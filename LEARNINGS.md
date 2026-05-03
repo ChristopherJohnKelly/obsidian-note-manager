@@ -182,3 +182,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 - `handle.cancel()` on a long-running (wait_condition) workflow from a test finally-block is insufficient — subsequent tests inherit lingering timer state. Use `handle.terminate()` for synchronous, immediate cleanup in test teardown.
 - To verify that continue_as_new fired, describe the ORIGINAL run by its `first_execution_run_id`: `status == WorkflowExecutionStatus.CONTINUED_AS_NEW`. `handle.describe()` on the latest-run handle does not tell you whether the previous run continued.
 - `create_workers(client)` can only run once per client in the test suite — Temporal bridge forbids multiple Worker registrations on the same task queue. Combine all worker-registration assertions into a single test; separate tests calling `create_workers` a second time raise `Registration of multiple workers with overlapping worker task types`.
+
+## S12 rejection — 2026-05-03T12:01:32Z
+- REJECTION: test_concurrent_signals_serialised flakes 4/10 — over-asserts asyncio.gather() send-order; AC#6 not reliably verified
