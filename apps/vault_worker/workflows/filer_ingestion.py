@@ -6,6 +6,7 @@ write vault (save to proposed path, delete from inbox).
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -93,7 +94,14 @@ class FilerIngestionWorkflow:
         self._proposal = proposal.model_dump(mode="json")
         self._status = "awaiting_approval"
 
-        await workflow.wait_condition(lambda: self._decision is not None)
+        try:
+            await workflow.wait_condition(
+                lambda: self._decision is not None,
+                timeout=timedelta(weeks=1),
+            )
+        except asyncio.TimeoutError:
+            self._status = "expired"
+            return "expired"
 
         if self._decision == "approve":
             self._status = "filing"
