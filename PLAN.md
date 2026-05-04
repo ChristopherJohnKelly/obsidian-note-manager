@@ -18,7 +18,7 @@ feat/OBSE-P5-temporal-soa-migration
 | S09 | VaultManagerWorkflow | step/OBSE-P5-S09-vault-manager-workflow | S04,S05 | done | #31 | 2 |  |
 | S10 | NightWatchmanWorkflow | step/OBSE-P5-S10-night-watchman-workflow | S06,S07,S08 | done | #32 | 1 |  |
 | S11 | FilerIngestionWorkflow | step/OBSE-P5-S11-filer-ingestion-workflow | S06,S07,S08 | in-progress | — | 0 | ralph@cc-ralph:1777920074 |
-| S12 | CopilotSessionWorkflow | step/OBSE-P5-S12-copilot-session-workflow | S06,S07 | review | #33 | 1 |  |
+| S12 | CopilotSessionWorkflow | step/OBSE-P5-S12-copilot-session-workflow | S06,S07 | queued | #33 | 2 |  |
 | S13 | GitHub Runner Refactor      | step/OBSE-P5-S13-github-runner-refactor        | S10,S11,S12,S17 | pending  | —   | 0        |            |
 | S14 | Copilot UI Refactor         | step/OBSE-P5-S14-copilot-ui-refactor           | S11,S12,S17     | pending  | —   | 0        |            |
 | S15 | CI/CD Pipeline              | step/OBSE-P5-S15-ci-cd-pipeline                | S13,S14,S17     | pending  | —   | 0        |            |

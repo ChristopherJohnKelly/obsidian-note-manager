@@ -185,3 +185,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S12 rejection — 2026-05-03T12:01:32Z
 - REJECTION: test_concurrent_signals_serialised flakes 4/10 — over-asserts asyncio.gather() send-order; AC#6 not reliably verified
+
+## S12 rejection — 2026-05-04T19:05:13Z
+- REJECTION: E               AssertionError: First user message should be 'a', got 'b';E               assert 'b' == 'a';E                 ;E                 - a;E                 + b;
