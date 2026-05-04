@@ -1,4 +1,26 @@
 ---
+step_id: S11
+step_slug: filer-ingestion-workflow
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S11-filer-ingestion-workflow.md
+attempts: 0
+bubble_hash: 796cee708970c30cd2aef5ec327f4df871f648b8f42e6e331479784e524895ac
+---
+## Goal
+See the bubble body below (`OBSE-P5-S11-filer-ingestion-workflow.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S11
@@ -186,3 +208,20 @@ async def test_filer_expires_after_one_week(temporal_client):
             result = await handle.result()
     assert result == "expired"
 ```
+
+## Steering from prior steps
+- [S03] `WorkflowEnvironment.start_time_skipping()` is the correct in-process env (not `start_local()`) — applicable here because all three E2E tests run under time-skipping and the timeout path depends on virtual-time advance.
+- [S03] Sync `def` activities need `activity_executor=ThreadPoolExecutor(...)` on the Worker — applicable here because the test Worker must register the LLM activity (sync) alongside the workflow.
+- [S04] `VaultNote.path: Path` is not JSON-serialisable with Temporal's default converter — applicable here because the workflow consumes ReadVaultWorkflow output containing Path fields, so the test client must be wired with `pydantic_data_converter`.
+- [S06] LLM Activities use module-level `_provider` + `configure_provider()` with an autouse fixture injecting `FakeLLMProvider` — applicable here because the "drafting" phase invokes the LLM activity and tests need a deterministic `FilingProposal` payload.
+- [S07] When the SDK lacks a cross-workflow primitive the TRD mandates, use an activity shim rather than rewriting the contract — applicable here because ReadVaultWorkflow (a child of this workflow) reaches `vault-manager` through the Update-via-activity shim that the stub must satisfy.
+- [S07] `VaultManagerStub` must register `@workflow.update(name=UPD_ENSURE_SYNCED)` ONLY, no signal handler under the same name — applicable here because all three tests start a stub at id `vault-manager` and the testing note explicitly says to follow the B07/B10 pattern.
+- [S07] Don't dual-register signal+update handlers to mask a contract violation — applicable here because the stub design temptation recurs whenever ReadVaultWorkflow is exercised.
+- [Exploratory test naming] Scratch/debug tests must use `test_explore_/test_debug_/test_inline_…` prefixes; >3 such files in a session triggers wind-down — applicable here because the timeout-path test is the trickiest TDD piece and any throwaway probes must be named to avoid escalation.
+- [S08] Mock activities for an E2E test must be registered under the real names via `@activity.defn(name="save_note")` etc. — applicable here because the approve path delegates to WriteVaultWorkflow which dispatches `save_note` and `delete_file` by name.
+- [S08] WriteVaultWorkflow is dispatched on `QUEUE_MUTATION`, not a per-test queue — applicable here because the approve path's child WriteVaultWorkflow needs a Worker listening on `QUEUE_MUTATION` to make progress.
+- [S08] `create_workers(client)` can only be called once per client (bridge forbids re-registering the same task queue) — applicable here because three tests share the session `temporal_client` and must consolidate worker setup.
+- [S09] `workflow.wait_condition(..., timeout=…)` RAISES `asyncio.TimeoutError` — it does NOT return a falsy "timed_out" — applicable here because the bubble's reference snippet uses `not await workflow.wait_condition(...)`; the real implementation must wrap in `try/except asyncio.TimeoutError` or the workflow ends FAILED instead of returning `"expired"`.
+- [S09] Session-scoped time-skipping `WorkflowEnvironment` accumulates virtual-time history; long virtual-time sleeps (minutes+) after 200+ prior tests time out with `RPCError: Timeout expired` — applicable here because the timeout test advances virtual time by 1 week + 1 second and likely needs a function-scoped fresh env.
+- [S09] Use `handle.terminate()` (not `handle.cancel()`) in test teardown for long-running `wait_condition` workflows — applicable here because the approve/reject tests must cleanly tear down the HITL pause so subsequent tests don't inherit timer state.
+- [Pytest orchestration] One pytest invocation at a time; check for stuck processes before launching — applicable here because the timeout test is slow under time-skipping and a stale pytest from a prior cycle would silently corrupt results.
