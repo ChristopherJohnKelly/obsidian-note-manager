@@ -123,3 +123,6 @@ class FilerIngestionWorkflow:
             )
             self._status = "complete"
             return "filed"
+        elif self._decision == "reject":
+            self._status = "rejected"
+            return "rejected"
