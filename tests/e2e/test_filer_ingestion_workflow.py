@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import shutil
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from pathlib import Path
 
 import pytest_asyncio
@@ -17,6 +19,7 @@ from temporalio import activity, workflow
 from temporalio.client import Client
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.contrib.pydantic import pydantic_data_converter
+from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from apps.vault_worker.activities.vault_io import (
@@ -412,3 +415,140 @@ async def test_reject_path_leaves_vault_unchanged(pydantic_client, dummy_vault_p
 
     finally:
         configure_provider(None)
+
+
+async def test_timeout_path_returns_expired_after_one_week(dummy_vault_path, tmp_path):
+    """FilerIngestionWorkflow timeout path: 1-week wait → asyncio.TimeoutError → returns 'expired'.
+
+    Uses fresh WorkflowEnvironment.start_time_skipping() to avoid session-env
+    virtual-time accumulation hazard.
+
+    - Open fresh time-skipping env
+    - Create pydantic_client from env.client (not session fixture)
+    - Configure FakeLLMProvider
+    - Register QUEUE_DEFAULT Worker only (no QUEUE_MUTATION; timeout never writes)
+    - Start VaultManagerStub
+    - Copy dummy_vault and create inbox note
+    - Snapshot vault state before
+    - Start FilerIngestionWorkflow
+    - Poll status until "awaiting_approval"
+    - Advance time by 1 week + 1 second
+    - Assert result == "expired"
+    - Assert status query returns "expired"
+    - Snapshot vault state after
+    - Assert before == after (vault unchanged)
+    - Cleanup: configure_provider(None), configure_client(None), cancel stub
+    """
+    from apps.vault_worker.activities.llm import configure_provider
+
+    # Open fresh time-skipping environment
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        # Create pydantic_client from env.client
+        pydantic_client = Client(
+            service_client=env.client.service_client,
+            namespace=env.client.namespace,
+            data_converter=pydantic_data_converter,
+        )
+        configure_client(pydantic_client)
+
+        # Configure LLM provider
+        fake_llm = FakeLLMProvider()
+        configure_provider(fake_llm)
+
+        # Copy dummy_vault to a temporary mutable vault
+        tmp_vault = tmp_path / "vault"
+        shutil.copytree(dummy_vault_path, tmp_vault)
+
+        # Create source inbox note for filing
+        inbox_dir = tmp_vault / "00. Inbox" / "0. Capture"
+        inbox_dir.mkdir(parents=True, exist_ok=True)
+        inbox_note = inbox_dir / "timeout-test-note.md"
+        inbox_note.write_text(
+            "---\n"
+            "title: Timeout Test Note\n"
+            "---\n"
+            "# Timeout Test Note\n"
+            "This note will timeout without approval."
+        )
+
+        default_queue = QUEUE_DEFAULT
+
+        try:
+            # Snapshot vault state before
+            before = sorted((p.relative_to(tmp_vault).as_posix() for p in tmp_vault.rglob("*.md")))
+
+            # Start QUEUE_DEFAULT worker only (no mutation)
+            async with Worker(
+                pydantic_client,
+                task_queue=default_queue,
+                workflows=[VaultManagerStub, ReadVaultWorkflow, FilerIngestionWorkflow],
+                activities=[
+                    get_code_registry,
+                    get_skeleton,
+                    read_note,
+                    list_notes_in,
+                    ensure_vault_synced,
+                    generate_proposal,
+                ],
+                activity_executor=ThreadPoolExecutor(max_workers=4),
+            ):
+                # Start VaultManagerStub
+                stub_handle = await pydantic_client.start_workflow(
+                    VaultManagerStub.run,
+                    id=VAULT_MANAGER_ID,
+                    task_queue=default_queue,
+                    id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
+                )
+
+                try:
+                    # Start FilerIngestionWorkflow
+                    handle = await pydantic_client.start_workflow(
+                        FilerIngestionWorkflow.run,
+                        FilerIngestionInput(
+                            vault_path=str(tmp_vault),
+                            source_path="00. Inbox/0. Capture/timeout-test-note.md",
+                            context_code="TEST-P01",
+                        ),
+                        id=f"filer-timeout-{uuid.uuid4().hex[:4]}",
+                        task_queue=default_queue,
+                    )
+
+                    # Poll status until awaiting_approval (with timeout)
+                    deadline = time.time() + 30
+                    while time.time() < deadline:
+                        status = await handle.query("get_status")
+                        if status == "awaiting_approval":
+                            break
+                        await asyncio.sleep(0.5)
+                    else:
+                        raise AssertionError(
+                            f"FilerIngestionWorkflow did not reach 'awaiting_approval' within 30s; "
+                            f"last status={status}"
+                        )
+
+                    # Advance time by 1 week + 1 second
+                    await env.sleep(timedelta(weeks=1, seconds=1))
+
+                    # Await result
+                    result = await handle.result()
+                    assert result == "expired", f"Expected result='expired', got {result}"
+
+                    # Assert status query returns "expired"
+                    final_status = await handle.query("get_status")
+                    assert final_status == "expired", f"Expected final status='expired', got {final_status}"
+
+                    # Snapshot vault state after
+                    after = sorted((p.relative_to(tmp_vault).as_posix() for p in tmp_vault.rglob("*.md")))
+
+                    # Assert vault unchanged (same files before and after)
+                    assert before == after, (
+                        f"Vault was modified during timeout; "
+                        f"before={before}, after={after}"
+                    )
+
+                finally:
+                    await stub_handle.cancel()
+
+        finally:
+            configure_provider(None)
+            configure_client(None)
