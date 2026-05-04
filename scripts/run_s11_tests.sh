@@ -2,7 +2,7 @@
 set -e
 set -o pipefail
 
-uv run pytest \
+python -m pytest \
   --timeout=540 \
   --timeout-method=thread \
   --no-cov \
