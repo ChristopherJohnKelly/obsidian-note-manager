@@ -288,3 +288,127 @@ async def test_approve_path_files_note_and_clears_inbox(pydantic_client, dummy_v
 
     finally:
         configure_provider(None)
+
+
+async def test_reject_path_leaves_vault_unchanged(pydantic_client, dummy_vault_path, tmp_path):
+    """FilerIngestionWorkflow reject path: draft proposal → await approval → send reject.
+
+    Vault must remain unchanged when user rejects the proposal.
+
+    - Copy dummy_vault_path to tmp_path / "vault" for mutation
+    - Configure FakeLLMProvider
+    - Register QUEUE_DEFAULT Worker only (no QUEUE_MUTATION; reject does not write)
+    - Start VaultManagerStub to handle ensure_synced Update
+    - Create inbox note
+    - Snapshot vault state (list .md files before)
+    - Start FilerIngestionWorkflow with inbox note
+    - Poll status until "awaiting_approval"
+    - Send reject signal
+    - Assert result == "rejected"
+    - Snapshot vault state after (list .md files)
+    - Assert before == after (vault unchanged)
+    - Assert status query returns "rejected"
+    """
+    from apps.vault_worker.activities.llm import configure_provider
+
+    # Copy dummy_vault to a temporary mutable vault
+    tmp_vault = tmp_path / "vault"
+    shutil.copytree(dummy_vault_path, tmp_vault)
+
+    # Create source inbox note for filing
+    inbox_dir = tmp_vault / "00. Inbox" / "0. Capture"
+    inbox_dir.mkdir(parents=True, exist_ok=True)
+    inbox_note = inbox_dir / "new-capture-note.md"
+    inbox_note.write_text(
+        "---\n"
+        "title: New Capture\n"
+        "---\n"
+        "# New Capture\n"
+        "This is a note to be filed."
+    )
+
+    # Configure LLM provider
+    fake_llm = FakeLLMProvider()
+    configure_provider(fake_llm)
+
+    default_queue = QUEUE_DEFAULT
+
+    try:
+        # Snapshot vault state before
+        before = sorted((p.relative_to(tmp_vault).as_posix() for p in tmp_vault.rglob("*.md")))
+
+        # Start QUEUE_DEFAULT worker only (no mutation/write)
+        async with Worker(
+            pydantic_client,
+            task_queue=default_queue,
+            workflows=[VaultManagerStub, ReadVaultWorkflow, FilerIngestionWorkflow],
+            activities=[
+                get_code_registry,
+                get_skeleton,
+                read_note,
+                list_notes_in,
+                ensure_vault_synced,
+                generate_proposal,
+            ],
+            activity_executor=ThreadPoolExecutor(max_workers=4),
+        ):
+            # Start VaultManagerStub
+            stub_handle = await pydantic_client.start_workflow(
+                VaultManagerStub.run,
+                id=VAULT_MANAGER_ID,
+                task_queue=default_queue,
+                id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
+            )
+
+            try:
+                # Start FilerIngestionWorkflow
+                handle = await pydantic_client.start_workflow(
+                    FilerIngestionWorkflow.run,
+                    FilerIngestionInput(
+                        vault_path=str(tmp_vault),
+                        source_path="00. Inbox/0. Capture/new-capture-note.md",
+                        context_code="TEST-P01",
+                    ),
+                    id=f"filer-reject-{uuid.uuid4().hex[:4]}",
+                    task_queue=default_queue,
+                )
+
+                # Poll status until awaiting_approval (with timeout)
+                import time
+                deadline = time.time() + 30
+                while time.time() < deadline:
+                    status = await handle.query("get_status")
+                    if status == "awaiting_approval":
+                        break
+                    await asyncio.sleep(0.5)
+                else:
+                    raise AssertionError(
+                        f"FilerIngestionWorkflow did not reach 'awaiting_approval' within 30s; "
+                        f"last status={status}"
+                    )
+
+                # Send reject signal
+                await handle.signal(FilerIngestionWorkflow.reject)
+
+                # Await result
+                result = await handle.result()
+                assert result == "rejected", f"Expected result='rejected', got {result}"
+
+                # Snapshot vault state after
+                after = sorted((p.relative_to(tmp_vault).as_posix() for p in tmp_vault.rglob("*.md")))
+
+                # Assert vault unchanged (same files before and after)
+                assert before == after, (
+                    f"Vault was modified during reject; "
+                    f"before={before}, after={after}"
+                )
+
+                # Assert final status is "rejected"
+                final_status = await handle.query("get_status")
+                assert final_status == "rejected", f"Expected final status='rejected', got {final_status}"
+
+            finally:
+                await stub_handle.cancel()
+
+    finally:
+        configure_provider(None)
