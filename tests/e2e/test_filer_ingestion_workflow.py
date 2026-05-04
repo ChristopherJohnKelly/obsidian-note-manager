@@ -2,6 +2,8 @@
 
 FilerIngestionWorkflow orchestrates inbox note filing: read → generate proposal →
 await approval signal → write vault.
+
+C3 replan: test design is correct under new plan; replan only fixed expected_red_signature regex.
 """
 
 from __future__ import annotations
