@@ -188,3 +188,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S12 rejection — 2026-05-04T19:05:13Z
 - REJECTION: E               AssertionError: First user message should be 'a', got 'b';E               assert 'b' == 'a';E                 ;E                 - a;E                 + b;
+
+## S11 rejection — 2026-05-05T12:03:50Z
+- REJECTION: Acceptance criteria #1 (status="drafting" during LLM) and #6 (get_draft_proposal returns None before LLM completes, tested with start_time_skipping) are not asserted in any test; approve test queries get_draft_proposal but discards the result instead of asserting None
