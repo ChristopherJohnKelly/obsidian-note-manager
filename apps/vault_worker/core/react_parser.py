@@ -19,7 +19,7 @@ def parse_react_response(raw: str) -> DirectResponse | ToolCall:
 
     lines = raw.splitlines()
     name = ""
-    args: dict = {}
+    args = {}
 
     for line in lines:
         stripped = line.strip()
@@ -30,7 +30,7 @@ def parse_react_response(raw: str) -> DirectResponse | ToolCall:
             if args_str:
                 try:
                     args = json.loads(args_str)
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError:
                     args = {}
 
     return ToolCall(name=name, args=args)
