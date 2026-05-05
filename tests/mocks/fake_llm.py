@@ -34,6 +34,24 @@ tags: ["type/content"]
 Fixed content.
 %%END%%"""
 
+    def __init__(self) -> None:
+        # Lazy queue used only by the chat-response path. Subclasses
+        # that override __init__ MUST call super().__init__().
+        self._response_queue: list[str] = []
+
+    def queue_response(self, response: str) -> None:
+        self._response_queue.append(response)
+
+    def generate_chat_response(self, messages) -> str:
+        if self._response_queue:
+            return self._response_queue.pop(0)
+        return "Hello, this is the default direct response."
+
+    def generate_react_response(self, mode: str) -> str:
+        if mode == "tool_call":
+            return "TOOL: get_skeleton\nARGS: {}"
+        return "Hello, this is a direct response."
+
     def generate_proposal(self, instructions: str, body: str,
                           context: str, skeleton: str) -> str:
         """Return a hardcoded filing proposal with %%FILE%% markers."""

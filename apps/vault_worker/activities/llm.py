@@ -17,7 +17,7 @@ from temporalio import activity
 from temporalio.common import RetryPolicy
 
 from apps.vault_worker.activities.llm_provider import LLMProviderBase
-from packages.shared.models import VaultContext, VaultNote
+from packages.shared.models import ChatMessage, VaultContext, VaultNote
 
 # ---------------------------------------------------------------------------
 # Retry policy — import and apply at execute_activity() call site in Workflows
@@ -60,6 +60,12 @@ def _get_provider() -> LLMProviderBase:
 # ---------------------------------------------------------------------------
 # Activities
 # ---------------------------------------------------------------------------
+
+
+@activity.defn
+def generate_chat_response(messages: list[ChatMessage]) -> str:
+    provider = _get_provider()
+    return provider.generate_chat_response(messages)
 
 
 @activity.defn
