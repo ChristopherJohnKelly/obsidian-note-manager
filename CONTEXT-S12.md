@@ -3,7 +3,7 @@ step_id: S12
 step_slug: copilot-session-workflow
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S12-copilot-session-workflow.md
-attempts: 0
+attempts: 1
 bubble_hash: c5e56ef8b30d07440850389bf91fdee203ec414da9121c652b5751a921ec446e
 ---
 ## Goal
@@ -216,3 +216,8 @@ async def run(self, input: CopilotSessionInput) -> None:
 - [Orchestration] Scratch/debug tests must use `test_explore_*` (or `test_debug_*`, etc.) prefixes; >3 such files in a session triggers wind-down — applicable here because S12's TDD path (parser unit → 3 E2E tests) is rabbit-hole-prone if signal serialisation or tool dispatch misbehaves.
 - [Orchestration] One `pytest` invocation at a time; check `ps aux | grep pytest` before starting and `pkill -f "pytest tests/"` to clear stuck runs — applicable here because S12 has multiple test phases (parser, then per-AC E2E commits) and prior parallel pytest runs caused hangs.
 - [Persistent] `.gitignore` is append-only — never modify existing entries — applicable here because new test artefacts (e.g. transient session files) may tempt edits to existing patterns.
+
+## Prior failures
+### Attempt 1
+## Prior failures
+
