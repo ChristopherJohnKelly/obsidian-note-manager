@@ -51,21 +51,18 @@ class CopilotSessionWorkflow:
         return self._status
 
     async def _dispatch_tool(self, tool_call: ToolCall, vault_path: str) -> str:
-        if tool_call.tool_name == "get_skeleton":
-            result = await workflow.execute_activity(
-                get_skeleton,
-                args=[vault_path],
-                schedule_to_close_timeout=timedelta(minutes=1),
-            )
-        elif tool_call.tool_name == "get_code_registry":
-            result = await workflow.execute_activity(
-                get_code_registry,
-                args=[vault_path],
-                schedule_to_close_timeout=timedelta(minutes=1),
-            )
-        else:
-            result = f"Unknown tool: {tool_call.tool_name}"
-        return str(result)
+        _tools = {
+            "get_skeleton": get_skeleton,
+            "get_code_registry": get_code_registry,
+        }
+        activity_fn = _tools.get(tool_call.tool_name)
+        if activity_fn is None:
+            return f"Unknown tool: {tool_call.tool_name}"
+        return str(await workflow.execute_activity(
+            activity_fn,
+            args=[vault_path],
+            schedule_to_close_timeout=timedelta(minutes=1),
+        ))
 
     async def _run_react_iteration(self, msg: dict, input: dict) -> None:
         self._status = "thinking"
