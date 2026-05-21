@@ -1,29 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import timedelta
 
 from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
     from apps.vault_worker.activities.llm import generate_chat_response
-    from apps.vault_worker.core.react_parser import (
-        DirectResponse,
-        ToolCall,
-        parse_react_response,
-    )
+    from apps.vault_worker.core.react_parser import parse_react_response
     from packages.shared.workflow_names import (
         QRY_GET_HISTORY,
         QRY_GET_STATUS,
         SIG_CANCEL_SESSION,
         SIG_RECEIVE_MESSAGE,
     )
-
-
-@dataclass
-class CopilotSessionInput:
-    vault_path: str
-    session_id: str
 
 
 @workflow.defn
