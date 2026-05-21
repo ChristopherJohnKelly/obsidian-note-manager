@@ -43,7 +43,7 @@ tags: [ type/bubble ]
 ## 3. Required Output
 
 - [ ] `apps/vault_worker/workflows/filer_ingestion.py` — `FilerIngestionWorkflow`
-- [ ] `tests/e2e/test_filer_ingestion_workflow.py` — three path tests
+- [ ] `tests/e2e/test_filer_ingestion_workflow.py` — four tests: three path tests (approve, reject, timeout) plus one structural dispatch test (`test_approve_dispatches_via_write_vault_workflow`, see §6)
 
 **Workflow interface (from TRD Section 4.6):**
 
@@ -84,6 +84,7 @@ class FilerIngestionWorkflow:
 - [ ] **Reject path:** Sending `reject` Signal → `get_status` is `"rejected"`; vault is unchanged; workflow returns `"rejected"`
 - [ ] **Timeout path:** Using time-skipping, advance 1 week + 1 second → workflow returns `"expired"`; vault is unchanged
 - [ ] `get_draft_proposal` returns `None` before the LLM Activity completes (tested with `start_time_skipping`)
+- [ ] **Dispatch via child workflow (ARCHITECTURAL — non-negotiable):** the approve path MUST perform the write by executing `WriteVaultWorkflow` as a child workflow (`await workflow.execute_child_workflow(WriteVaultWorkflow.run, ...)`), carrying both the save (proposed path) and the delete (source inbox path) in that single call. `FilerIngestionWorkflow` MUST NOT call the `save_note` or `delete_note` Activities directly, and reads MUST go via `ReadVaultWorkflow` — never direct Activity calls. `FilerIngestionWorkflow` is a coordinator that composes child workflows; it owns no direct vault I/O. This is pinned by a structural test (see §3, §6) and is the reason a prior attempt was rejected.
 
 ---
 
@@ -99,17 +100,18 @@ class FilerIngestionWorkflow:
 - Write all three path tests (approve, reject, timeout) before any implementation
 - The timeout test, using `WorkflowEnvironment.start_time_skipping()`, must be implemented correctly — this is the key Temporal capability being validated
 - Test the `get_draft_proposal` Query returning `None` before LLM completes (use time-skipping to pause mid-execution)
+- **Structural dispatch test (`test_approve_dispatches_via_write_vault_workflow`):** register a recording `WriteVaultWorkflow` stub in the test module (same pattern as the `VaultManagerStub`) that records the input it receives and performs the save+delete itself so the behavioural approve-path assertions still hold; assert the stub was invoked exactly once, with the proposed save path and the source-inbox delete path. This test MUST fail if `FilerIngestionWorkflow` bypasses the child workflow and calls the `save_note`/`delete_note` Activities directly. Consult the `temporal-developer` skill for the correct way to assert child-workflow dispatch in a time-skipping test environment.
 
 ---
 
 ## 7. Step-by-Step Plan
 
-1. Write all three E2E tests. Run — fail (workflow not defined).
+1. Write all four E2E tests (approve, reject, timeout, structural dispatch). Run — fail (workflow not defined).
 2. Define the `FilerIngestionWorkflow` class with Signal/Query handlers and status management via instance variables (`_status`, `_proposal`, `_approved`).
-3. Implement the `run` method: read context → LLM proposal → set `_proposal` → set `_status="awaiting_approval"` → `await workflow.wait_condition(lambda: self._approved is not None, timeout=timedelta(weeks=1))`.
-4. On `approve`: dispatch `WriteVaultWorkflow` with save (proposed path) + delete (source path) operations.
+3. Implement the `run` method: read context (via `ReadVaultWorkflow`, not direct Activities) → LLM proposal → set `_proposal` → set `_status="awaiting_approval"` → `await workflow.wait_condition(lambda: self._approved is not None, timeout=timedelta(weeks=1))`.
+4. On `approve`: dispatch the write by `await workflow.execute_child_workflow(WriteVaultWorkflow.run, ...)` carrying save (proposed path) + delete (source path) in that single call — never call `save_note`/`delete_note` Activities directly.
 5. On `reject` or timeout: return without writing.
-6. Pass approve test → commit. Pass reject test → commit. Pass timeout test → commit.
+6. Pass approve test → commit. Pass reject test → commit. Pass timeout test → commit. Pass structural dispatch test → commit.
 
 ---
 
@@ -163,7 +165,14 @@ class FilerIngestionWorkflow:
             return "rejected"
         else:
             self._status = "filing"
-            # ... dispatch WriteVaultWorkflow ...
+            # Dispatch the write as a CHILD WORKFLOW — never call
+            # save_note/delete_note Activities directly from here.
+            # await workflow.execute_child_workflow(
+            #     WriteVaultWorkflow.run,
+            #     WriteVaultInput(operations=[save(proposed_path), delete(source_path)]),
+            #     id=...,
+            #     task_queue=QUEUE_DEFAULT,
+            # )
             self._status = "complete"
             return "filed"
 ```
