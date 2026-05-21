@@ -17,8 +17,7 @@ class ToolCall:
 
 
 def parse_react_response(text: str) -> DirectResponse | ToolCall:
-    lines = text.split("\n")
-    first_non_empty = next((l for l in lines if l.strip()), "")
+    first_non_empty = next((line for line in text.split("\n") if line.strip()), "")
 
     tool_match = re.match(r"^TOOL:\s*(\S+)\s*$", first_non_empty)
     if not tool_match:
