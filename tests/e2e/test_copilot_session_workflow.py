@@ -94,6 +94,36 @@ def mock_chat_activity(messages: list[ChatMessage]) -> str:
 activity.defn(name="generate_chat_response")(mock_chat_activity)
 
 
+# Stateful mock for tool-use test
+_tool_use_test_call_count = 0
+
+
+def mock_chat_for_tool_use(messages: list[ChatMessage]) -> str:
+    """Stateful mock that returns tool_call format on first call, direct response on second.
+
+    This mock is used to test the two-call tool-use flow:
+    1. First call returns tool_call format (e.g., "TOOL: get_skeleton\nARGS: {}")
+    2. Workflow dispatches the tool
+    3. Tool result is appended to history
+    4. Second call returns a direct string response
+    """
+    global _tool_use_test_call_count, _mock_activity_event
+    if _mock_activity_event:
+        _mock_activity_event.wait()
+
+    _tool_use_test_call_count += 1
+    if _tool_use_test_call_count == 1:
+        provider = FakeLLMProvider()
+        return provider.generate_react_response("tool_call")
+    else:
+        return "Skeleton analysis complete."
+
+
+def mock_get_skeleton_activity(vault_path: str) -> str:
+    """Mock for get_skeleton activity in tool-use test."""
+    return "vault_structure: [notes, attachments, config.json]"
+
+
 @pytest_asyncio.fixture
 async def pydantic_client(temporal_client: Client) -> Client:
     """Client with pydantic_data_converter for E2E tests."""
@@ -188,4 +218,137 @@ async def test_copilot_session_single_turn(pydantic_client: Client):
         finally:
             # Clean up
             _mock_activity_event = None
+            await handle.terminate()
+
+
+async def test_copilot_session_tool_use(pydantic_client: Client):
+    """CopilotSessionWorkflow tool-use E2E test.
+
+    Tests that tool-use (ToolCall parsing, dispatch, and second LLM call) works:
+    - First generate_chat_response call returns tool_call format
+    - Workflow parses as ToolCall and dispatches the named tool (get_skeleton)
+    - Tool result is appended to history as a tool message with role="tool"
+    - Second generate_chat_response call is made with augmented history
+    - Final assistant message comes from the second call
+    - Workflow returns to idle state
+
+    This test will FAIL (red) against C3 code because:
+    - Current code appends raw "TOOL: ..." string as assistant content
+    - Never dispatches the tool or makes a second call
+    - No tool message in history → AssertionError
+    """
+    global _mock_activity_event, _tool_use_test_call_count
+    _tool_use_test_call_count = 0  # Reset for this test
+    task_queue = f"test-copilot-tool-{uuid.uuid4().hex[:8]}"
+
+    # Decorate the stateful mocks for this test's Worker
+    chat_activity = activity.defn(name="generate_chat_response")(
+        mock_chat_for_tool_use
+    )
+    skeleton_activity = activity.defn(name="get_skeleton")(mock_get_skeleton_activity)
+
+    async with Worker(
+        pydantic_client,
+        task_queue=task_queue,
+        workflows=[CopilotSessionWorkflow],
+        activities=[chat_activity, skeleton_activity],
+        activity_executor=ThreadPoolExecutor(max_workers=2),
+    ):
+        # Start workflow
+        handle = await pydantic_client.start_workflow(
+            CopilotSessionWorkflow.run,
+            {"vault_path": "/dummy/vault", "session_id": "test-tool-use-1"},
+            id=f"copilot-tool-test-{uuid.uuid4().hex[:8]}",
+            task_queue=task_queue,
+        )
+
+        try:
+            # Assert initial state: idle
+            status = await handle.query(CopilotSessionWorkflow.get_status)
+            assert status == "idle", f"Expected initial idle, got {status}"
+
+            # Assert initial history is empty
+            history = await handle.query(CopilotSessionWorkflow.get_history)
+            assert (
+                len(history) == 0
+            ), f"Expected empty initial history, got {len(history)} items"
+
+            # Gate the mock activities using threading.Event
+            _mock_activity_event = threading.Event()
+
+            # Signal a user message that will trigger tool-use
+            await handle.signal(
+                CopilotSessionWorkflow.receive_message,
+                {"role": "user", "content": "What is in my vault?"},
+            )
+
+            # Give the workflow time to process and hit the gated activity
+            await asyncio.sleep(0.1)
+
+            # Assert in-flight: thinking state
+            status = await handle.query(CopilotSessionWorkflow.get_status)
+            assert status == "thinking", f"Expected thinking, got {status}"
+
+            # Assert history has user message (not yet the tool/assistant)
+            history = await handle.query(CopilotSessionWorkflow.get_history)
+            assert (
+                len(history) == 1
+            ), f"Expected 1 item in history, got {len(history)}"
+            assert history[0]["role"] == "user"
+            assert history[0]["content"] == "What is in my vault?"
+
+            # Allow the activities to proceed
+            _mock_activity_event.set()
+
+            # Poll for history to include tool message and second assistant response
+            # Expected: user + tool + assistant (3 items minimum)
+            max_attempts = 50
+            for attempt in range(max_attempts):
+                history = await handle.query(CopilotSessionWorkflow.get_history)
+                if len(history) >= 3:
+                    break
+                await asyncio.sleep(0.1)
+
+            history = await handle.query(CopilotSessionWorkflow.get_history)
+
+            # === KEY ASSERTIONS THAT FAIL WITH CURRENT CODE ===
+            # These will fail because C3 code doesn't handle ToolCall
+
+            # 1. User message should be first
+            assert (
+                history[0]["role"] == "user"
+            ), f"First message should be user, got {history[0].get('role')}"
+            assert history[0]["content"] == "What is in my vault?"
+
+            # 2. CRITICAL: Tool message must be present
+            # Current code appends raw "TOOL: get_skeleton\nARGS: {}" as assistant,
+            # so there will be NO tool message → AssertionError
+            tool_messages = [
+                m for m in history if m.get("role") == "tool"
+            ]
+            assert (
+                len(tool_messages) > 0
+            ), "No tool message in history - tool dispatch failed"
+            tool_msg = tool_messages[0]
+            assert tool_msg.get("tool_name") == "get_skeleton"
+            assert len(tool_msg.get("content", "")) > 0
+            assert "vault_structure" in tool_msg.get("content", "")
+
+            # 3. Final assistant message should be from second call
+            # Current code has the raw tool string, so this will fail
+            assert (
+                history[-1]["role"] == "assistant"
+            ), f"Last message should be assistant, got {history[-1].get('role')}"
+            assert (
+                history[-1]["content"] == "Skeleton analysis complete."
+            ), f"Final assistant content should be from second call, got {history[-1].get('content')}"
+
+            # 4. Assert final state: idle
+            status = await handle.query(CopilotSessionWorkflow.get_status)
+            assert status == "idle", f"Expected final idle, got {status}"
+
+        finally:
+            # Clean up
+            _mock_activity_event = None
+            _tool_use_test_call_count = 0
             await handle.terminate()
