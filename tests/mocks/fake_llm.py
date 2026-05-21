@@ -44,6 +44,14 @@ Fixed content.
         """Return a hardcoded fix proposal with %%FILE%% markers."""
         return self.FAKE_FIX
 
+    def generate_chat_response(self, messages) -> str:
+        return "Here is your answer."
+
+    def generate_react_response(self, mode: str) -> str:
+        if mode == "tool_call":
+            return "TOOL: get_skeleton\nARGS: {}"
+        return "Here is a direct response."
+
     def __getattr__(self, name: str):
         raise NotImplementedError(
             f"FakeLLMProvider.{name}() is not implemented. "
