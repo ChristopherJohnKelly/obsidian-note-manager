@@ -1,4 +1,26 @@
 ---
+step_id: S12
+step_slug: copilot-session-workflow
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S12-copilot-session-workflow.md
+attempts: 0
+bubble_hash: c5e56ef8b30d07440850389bf91fdee203ec414da9121c652b5751a921ec446e
+---
+## Goal
+See the bubble body below (`OBSE-P5-S12-copilot-session-workflow.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S12
@@ -176,3 +198,21 @@ async def run(self, input: CopilotSessionInput) -> None:
         await self._run_react_iteration(msg["content"], input.vault_path)
     self._status = "complete"
 ```
+
+## Steering from prior steps
+- [S03] Use `WorkflowEnvironment.start_time_skipping()` and register sync `def` Activities with `activity_executor=ThreadPoolExecutor(...)` on the Worker — applicable here because `generate_chat_response` is a new synchronous `def` LLM Activity needing the same Worker wiring in the E2E tests.
+- [S04] The Python package is `apps/vault_worker/` (underscore) and imports use `from packages.shared.models import ...` — applicable here because the new workflow, parser, and tests must live under and import from the underscore tree.
+- [S06] LLM Activities use a module-level `_provider` + `configure_provider()` injector, with an autouse fixture swapping in `FakeLLMProvider` and resetting after each test — applicable here because `generate_chat_response` must follow the same pattern and the new `generate_react_response` fake method must be wired through that fixture.
+- [S07] `VaultNote.path: Path` is not JSON-serialisable under Temporal's default converter — applicable here because the tool-use test routes `get_skeleton`/`get_code_registry` results back into the workflow's history and ReAct context.
+- [Orchestration] Scratch/debug tests must be named `test_explore_*` (or other listed prefixes) and stay under 3 files to avoid WINDDOWN — applicable here because the TDD plan iterates on parser fixtures and E2E flows that may need throwaway probes.
+- [S08] E2E mock activities must be registered under the real activity names via `@activity.defn(name="generate_chat_response")` etc. so the workflow's name-based dispatch picks them up — applicable here because the ReAct loop dispatches the LLM call and tool activities by name.
+- [S08] Setting `max_concurrent_workflow_tasks=1` on a test Worker requires `max_cached_workflows=0`, otherwise the Worker silently hangs at 0% CPU — applicable here if the concurrent-Signals test pins task concurrency to verify ReAct serialisation.
+- [Pytest discipline] Run one pytest at a time, check `ps aux | grep pytest` before launching, and never `Monitor` a running pytest — applicable here because the step has separate parser unit tests and three E2E flows that will be iterated in sequence.
+- [S09] `workflow.wait_condition(..., timeout=…)` raises `asyncio.TimeoutError` — applicable here because the main loop blocks on `wait_condition(lambda: len(self._pending_messages) > 0 or self._cancelled)` and any timeout variant must catch it explicitly.
+- [S09] Python SDK `@workflow.update`/Signal handlers interleave at `await` points and are NOT serialised by default; an `asyncio.Lock` (or single-consumer queue) is required for "one at a time" guarantees — applicable directly to AC#6 (two concurrent `receive_message` Signals must be queued and processed sequentially, with only one ReAct iteration running at a time).
+- [S09] Use `handle.terminate()` instead of `handle.cancel()` for synchronous teardown of long-running workflows so timer state doesn't leak into later tests — applicable here because `CopilotSessionWorkflow` runs until cancelled, and three E2E tests must each clean up deterministically.
+- [S09] The session-scoped time-skipping `WorkflowEnvironment` accumulates history and virtual sleeps can RPC-timeout after many tests; long-skip tests need a function-scoped fresh env — applicable here if the multi-turn or concurrent-Signals test relies on virtual time.
+- [S09] `create_workers(client)` can only be called once per client — Temporal bridge rejects duplicate registrations on the same task queue — applicable here because the E2E tests must reuse a single Worker setup rather than re-registering per test.
+- [S12:C1] The prior `test_concurrent_signals_serialised` over-asserted `asyncio.gather()` send-order and flaked 4/10 — applicable directly: assert serialisation (only one ReAct iteration in flight, both messages processed) rather than exact Signal arrival order.
+- [S12:C2] Previous attempt failed with "First user message should be 'a', got 'b'" — applicable directly: the concurrent-messages test must either send sequentially to guarantee order or assert only the order-independent property (both present, processed once each).
+- [S11] Prior step was rejected for calling queries (`get_draft_proposal`) without asserting their values for an in-flight state — applicable here because AC requires `get_status` to return `"idle"`/`"thinking"`/`"complete"` at specific points and `get_history` snapshots must be asserted, not merely invoked.
