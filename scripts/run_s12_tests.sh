@@ -4,7 +4,7 @@ set -o pipefail
 
 # Run S12 C1 tests: pure parser unit tests
 # Neutralize project-wide coverage settings to allow narrow-subset runs
-pytest \
+python -m pytest \
   --timeout=540 \
   --timeout-method=thread \
   -o addopts= \
