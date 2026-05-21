@@ -6,7 +6,8 @@ from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
     from apps.vault_worker.activities.llm import generate_chat_response
-    from apps.vault_worker.core.react_parser import parse_react_response
+    from apps.vault_worker.activities.vault_io import get_code_registry, get_skeleton
+    from apps.vault_worker.core.react_parser import ToolCall, parse_react_response
     from packages.shared.workflow_names import (
         QRY_GET_HISTORY,
         QRY_GET_STATUS,
@@ -49,6 +50,23 @@ class CopilotSessionWorkflow:
     def get_status(self) -> str:
         return self._status
 
+    async def _dispatch_tool(self, tool_call: ToolCall, vault_path: str) -> str:
+        if tool_call.tool_name == "get_skeleton":
+            result = await workflow.execute_activity(
+                get_skeleton,
+                args=[vault_path],
+                schedule_to_close_timeout=timedelta(minutes=1),
+            )
+        elif tool_call.tool_name == "get_code_registry":
+            result = await workflow.execute_activity(
+                get_code_registry,
+                args=[vault_path],
+                schedule_to_close_timeout=timedelta(minutes=1),
+            )
+        else:
+            result = f"Unknown tool: {tool_call.tool_name}"
+        return str(result)
+
     async def _run_react_iteration(self, msg: dict, input: dict) -> None:
         self._status = "thinking"
         self._history.append(msg)
@@ -57,6 +75,18 @@ class CopilotSessionWorkflow:
             args=[self._history],
             schedule_to_close_timeout=timedelta(minutes=2),
         )
-        parse_react_response(raw)
+        parsed = parse_react_response(raw)
+        if isinstance(parsed, ToolCall):
+            tool_result = await self._dispatch_tool(parsed, input["vault_path"])
+            self._history.append({
+                "role": "tool",
+                "tool_name": parsed.tool_name,
+                "content": tool_result,
+            })
+            raw = await workflow.execute_activity(
+                generate_chat_response,
+                args=[self._history],
+                schedule_to_close_timeout=timedelta(minutes=2),
+            )
         self._history.append({"role": "assistant", "content": raw})
         self._status = "idle"
