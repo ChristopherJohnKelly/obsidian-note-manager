@@ -76,6 +76,10 @@ def test_fake_provider_generate_react_response_other_modes():
 # Global event for gating the mock activity (used by ThreadPoolExecutor activities)
 _mock_activity_event: threading.Event | None = None
 
+# Global counters for tracking concurrent iterations (serialization test)
+_in_flight_counter = {"current": 0, "max": 0}
+_in_flight_lock = threading.Lock()
+
 
 def mock_chat_activity(messages: list[ChatMessage]) -> str:
     """Gated mock activity for generate_chat_response.
@@ -122,6 +126,39 @@ def mock_chat_for_tool_use(messages: list[ChatMessage]) -> str:
 def mock_get_skeleton_activity(vault_path: str) -> str:
     """Mock for get_skeleton activity in tool-use test."""
     return "vault_structure: [notes, attachments, config.json]"
+
+
+def mock_chat_concurrent(messages: list[ChatMessage]) -> str:
+    """Mock activity that tracks concurrent iterations for serialization test.
+
+    Increments counter on entry, yields to allow context switch, waits on gate,
+    then decrements on exit. Used to verify that workflow iterations are
+    serialized (max in-flight == 1) regardless of signal arrival order.
+    """
+    global _mock_activity_event, _in_flight_counter, _in_flight_lock
+
+    # Increment on entry (thread-safe)
+    with _in_flight_lock:
+        _in_flight_counter["current"] += 1
+        _in_flight_counter["max"] = max(
+            _in_flight_counter["max"],
+            _in_flight_counter["current"]
+        )
+
+    try:
+        # Yield to allow genuine concurrency to surface if iterations were wrongly parallel
+        import time
+        time.sleep(0)
+
+        # Gate on event
+        if _mock_activity_event:
+            _mock_activity_event.wait()
+
+        return "The answer is 42."
+    finally:
+        # Decrement on exit (thread-safe)
+        with _in_flight_lock:
+            _in_flight_counter["current"] -= 1
 
 
 @pytest_asyncio.fixture
@@ -539,3 +576,128 @@ async def test_copilot_session_cancel_signal(pydantic_client: Client):
 
         # Clean up
         _mock_activity_event = None
+
+
+async def test_copilot_session_concurrent_signals_serialization(pydantic_client: Client):
+    """Characterization test for concurrent-signal serialization.
+
+    Sends two receive_message signals concurrently via asyncio.gather to verify
+    that the workflow serializes iterations (single-consumer pattern) regardless
+    of signal arrival order.
+
+    This test directly addresses S12:C1/C2 where the prior test over-asserted
+    asyncio.gather send-order (flaked ~4/10 times). Assertions here are
+    order-independent: set equality on user contents, exact count of assistant
+    replies, and max-in-flight counter == 1 (proves serialization under
+    multi-worker executor).
+
+    No new code is expected to change — serialization is guaranteed by the
+    single-consumer event loop, regardless of concurrent signal arrival.
+    """
+    global _mock_activity_event, _in_flight_counter, _in_flight_lock
+    task_queue = f"test-copilot-concurrent-{uuid.uuid4().hex[:8]}"
+
+    # Reset counter for this test
+    with _in_flight_lock:
+        _in_flight_counter["current"] = 0
+        _in_flight_counter["max"] = 0
+
+    # Register the concurrency-tracking mock
+    chat_activity = activity.defn(name="generate_chat_response")(
+        mock_chat_concurrent
+    )
+
+    async with Worker(
+        pydantic_client,
+        task_queue=task_queue,
+        workflows=[CopilotSessionWorkflow],
+        activities=[chat_activity],
+        activity_executor=ThreadPoolExecutor(max_workers=2),
+    ):
+        # Start workflow
+        handle = await pydantic_client.start_workflow(
+            CopilotSessionWorkflow.run,
+            {"vault_path": "/test/vault", "session_id": "test-concurrent-serial"},
+            id=f"copilot-concurrent-test-{uuid.uuid4().hex[:8]}",
+            task_queue=task_queue,
+        )
+
+        try:
+            # Assert initial state
+            status = await handle.query(CopilotSessionWorkflow.get_status)
+            assert status == "idle", f"Expected initial idle, got {status}"
+            history = await handle.query(CopilotSessionWorkflow.get_history)
+            assert len(history) == 0, f"Expected empty initial history, got {len(history)}"
+
+            # Gate the mock activity
+            _mock_activity_event = threading.Event()
+
+            # Send two messages concurrently via asyncio.gather.
+            # asyncio.gather does not guarantee order, exposing signal arrival order
+            # as non-deterministic. However, workflow iteration must remain serialized.
+            await asyncio.gather(
+                handle.signal(
+                    CopilotSessionWorkflow.receive_message,
+                    {"role": "user", "content": "a"},
+                ),
+                handle.signal(
+                    CopilotSessionWorkflow.receive_message,
+                    {"role": "user", "content": "b"},
+                ),
+            )
+
+            # Give workflow time to process both signals
+            await asyncio.sleep(0.05)
+
+            # Allow activity to proceed (ungate)
+            _mock_activity_event.set()
+
+            # Poll for history to grow to 4 items (2 user + 2 assistant)
+            max_attempts = 50
+            for attempt in range(max_attempts):
+                history = await handle.query(CopilotSessionWorkflow.get_history)
+                if len(history) == 4:
+                    break
+                await asyncio.sleep(0.1)
+
+            history = await handle.query(CopilotSessionWorkflow.get_history)
+
+            # === ORDER-INDEPENDENT ASSERTIONS ===
+            # These assertions do NOT depend on which message arrived first.
+            # This is the key fix for the S12:C1/C2 flake.
+
+            # 1. Exactly 4 messages total (2 user + 2 assistant)
+            assert len(history) == 4, (
+                f"Expected 4 messages total, got {len(history)}"
+            )
+
+            # 2. Exactly 2 user messages with contents "a" and "b" (set equality)
+            user_contents = {
+                m["content"] for m in history if m["role"] == "user"
+            }
+            assert user_contents == {"a", "b"}, (
+                f"Expected user contents {{'a', 'b'}}, got {user_contents}"
+            )
+
+            # 3. Exactly 2 assistant messages
+            assistant_messages = [m for m in history if m["role"] == "assistant"]
+            assert len(assistant_messages) == 2, (
+                f"Expected 2 assistant messages, got {len(assistant_messages)}"
+            )
+
+            # 4. CRITICAL: Max in-flight iterations must be 1
+            # If workflow wrongly parallelized iterations, this would be > 1.
+            # The concurrency-tracking mock proves serialization under a
+            # multi-worker executor.
+            assert _in_flight_counter["max"] == 1, (
+                f"Serialization failed: max in-flight iterations = "
+                f"{_in_flight_counter['max']}, expected 1"
+            )
+
+            # Assert final state: idle
+            status = await handle.query(CopilotSessionWorkflow.get_status)
+            assert status == "idle", f"Expected final idle, got {status}"
+
+        finally:
+            # Clean up
+            _mock_activity_event = None
