@@ -110,13 +110,44 @@ def noop_git_push(vault_path: str) -> None:
 
 
 @activity.defn(name="save_note")
-def noop_save_note(vault_root: str, path: str, note: VaultNote) -> None:
-    pass
+def real_save_note(vault_root: str, path: str, note: VaultNote) -> None:
+    """Write a VaultNote to the vault."""
+    file_path = Path(vault_root) / path
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Build markdown content with frontmatter
+    content = ""
+
+    # Write frontmatter YAML block if present
+    if note.frontmatter:
+        content += "---\n"
+        fm_dict = note.frontmatter.model_dump() if hasattr(note.frontmatter, 'model_dump') else {}
+        for key, value in fm_dict.items():
+            if value is not None:
+                # Simple YAML serialization
+                if isinstance(value, str):
+                    content += f"{key}: {value}\n"
+                elif isinstance(value, (int, float, bool)):
+                    content += f"{key}: {value}\n"
+                elif isinstance(value, list):
+                    content += f"{key}: {value}\n"
+                else:
+                    content += f"{key}: {repr(value)}\n"
+        content += "---\n"
+
+    # Write body
+    content += note.body
+
+    with open(file_path, "w") as f:
+        f.write(content)
 
 
 @activity.defn(name="delete_note")
-def noop_delete_note(vault_root: str, path: str) -> None:
-    pass
+def real_delete_note(vault_root: str, path: str) -> None:
+    """Delete a note from the vault."""
+    file_path = Path(vault_root) / path
+    if file_path.exists():
+        file_path.unlink()
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +216,8 @@ def _read_activities():
 def _mutation_activities():
     """Activities needed for WriteVaultWorkflow on QUEUE_MUTATION."""
     return [
-        noop_save_note,
-        noop_delete_note,
+        real_save_note,
+        real_delete_note,
         noop_git_pull,
         noop_git_commit,
         noop_git_push,
