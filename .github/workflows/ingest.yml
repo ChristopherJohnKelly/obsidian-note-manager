@@ -1,0 +1,15 @@
+name: Filer Ingestion
+
+on:
+  push:
+    paths:
+      - '00. Inbox/0. Capture/**/*.md'
+
+jobs:
+  ingest:
+    runs-on: self-hosted
+    steps:
+      - name: Run FilerIngestionWorkflow
+        env:
+          SOURCE_PATH: ${{ github.event.head_commit.modified[0] }}
+        run: python3 trigger.py --workflow FilerIngestionWorkflow --source-path "$SOURCE_PATH"
