@@ -176,8 +176,7 @@ class RecordingWriteVaultStub:
         # Record the dispatch via activity
         await workflow.execute_activity(
             record_write_dispatch,
-            save_paths,
-            delete_paths,
+            args=[save_paths, delete_paths],
             schedule_to_close_timeout=timedelta(seconds=60),
         )
 
@@ -186,16 +185,13 @@ class RecordingWriteVaultStub:
             if op.op == "save":
                 await workflow.execute_activity(
                     real_save_note,
-                    input.vault_root,
-                    op.path,
-                    op.note,
+                    args=[input.vault_root, op.path, op.note],
                     schedule_to_close_timeout=timedelta(seconds=60),
                 )
             elif op.op == "delete":
                 await workflow.execute_activity(
                     real_delete_note,
-                    input.vault_root,
-                    op.path,
+                    args=[input.vault_root, op.path],
                     schedule_to_close_timeout=timedelta(seconds=60),
                 )
 
