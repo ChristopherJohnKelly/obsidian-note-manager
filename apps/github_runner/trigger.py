@@ -6,10 +6,8 @@ from dataclasses import dataclass
 
 from temporalio.client import Client
 
-from packages.shared.workflow_names import (
-    NIGHT_WATCHMAN_WORKFLOW,
-    FILER_INGESTION_WORKFLOW,
-)
+NIGHT_WATCHMAN_WORKFLOW = "NightWatchmanWorkflow"
+FILER_INGESTION_WORKFLOW = "FilerIngestionWorkflow"
 
 QUEUE_DEFAULT = "obsidian-note-manager"
 
