@@ -1,0 +1,12 @@
+name: NightWatchman
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  watchman:
+    runs-on: self-hosted
+    steps:
+      - name: Run NightWatchmanWorkflow
+        run: python trigger.py --workflow NightWatchmanWorkflow
