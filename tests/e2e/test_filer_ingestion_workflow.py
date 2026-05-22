@@ -185,13 +185,13 @@ class RecordingWriteVaultStub:
             if op.op == "save":
                 await workflow.execute_activity(
                     real_save_note,
-                    args=[input.vault_root, op.path, op.note],
+                    args=[input.vault_path, op.path, op.note],
                     schedule_to_close_timeout=timedelta(seconds=60),
                 )
             elif op.op == "delete":
                 await workflow.execute_activity(
                     real_delete_note,
-                    args=[input.vault_root, op.path],
+                    args=[input.vault_path, op.path],
                     schedule_to_close_timeout=timedelta(seconds=60),
                 )
 
