@@ -151,6 +151,58 @@ def real_delete_note(vault_root: str, path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# C4: Recording stub for structural dispatch test
+# ---------------------------------------------------------------------------
+
+_RECORDED: list = []
+
+
+@activity.defn(name="record_write_dispatch")
+def record_write_dispatch(save_paths: list[str], delete_paths: list[str]) -> None:
+    """Record the child WriteVaultWorkflow dispatch for structural assertion."""
+    _RECORDED.append((save_paths, delete_paths))
+
+
+@workflow.defn(name="WriteVaultWorkflow")
+class RecordingWriteVaultStub:
+    """Records child dispatch and performs actual write for structural test."""
+
+    @workflow.run
+    async def run(self, input: WriteVaultInput) -> str:
+        # Extract paths from operations
+        save_paths = [op.path for op in input.operations if op.op == "save"]
+        delete_paths = [op.path for op in input.operations if op.op == "delete"]
+
+        # Record the dispatch via activity
+        await workflow.execute_activity(
+            record_write_dispatch,
+            save_paths,
+            delete_paths,
+            schedule_to_close_timeout=timedelta(seconds=60),
+        )
+
+        # Perform actual writes (same as real WriteVaultWorkflow)
+        for op in input.operations:
+            if op.op == "save":
+                await workflow.execute_activity(
+                    real_save_note,
+                    input.vault_root,
+                    op.path,
+                    op.note,
+                    schedule_to_close_timeout=timedelta(seconds=60),
+                )
+            elif op.op == "delete":
+                await workflow.execute_activity(
+                    real_delete_note,
+                    input.vault_root,
+                    op.path,
+                    schedule_to_close_timeout=timedelta(seconds=60),
+                )
+
+        return "fake-sha"
+
+
+# ---------------------------------------------------------------------------
 # Blocking mock for generate_proposal (C1: test AC#1, AC#6)
 # ---------------------------------------------------------------------------
 
@@ -558,3 +610,135 @@ async def test_filer_expires_after_one_week():
                 # Reset providers and client
                 configure_provider(None)
                 configure_client(None)
+
+
+# ---------------------------------------------------------------------------
+# C4: Structural dispatch test — pinning child WriteVaultWorkflow invocation
+# ---------------------------------------------------------------------------
+
+
+async def test_approve_dispatches_via_write_vault_workflow(
+    pydantic_client, dummy_vault_path, tmp_path
+):
+    """C4: Structural test — approve dispatches child WriteVaultWorkflow with save+delete.
+
+    Asserts that the approve path:
+    - Dispatches WriteVaultWorkflow as child workflow exactly once
+    - Passes save operations with proposed path ("30. Areas/1. Test Area/AREA - Filed Note.md")
+    - Passes delete operations with source inbox path ("00. Inbox/0. Capture/new-capture-note.md")
+    - Returns "filed"
+    - Vault state is updated correctly
+    """
+    global _RECORDED
+    _RECORDED = []  # Clear for this test
+
+    # Copy dummy vault to tmp for mutation
+    tmp_vault = tmp_path / "vault"
+    shutil.copytree(dummy_vault_path, tmp_vault)
+
+    # Configure providers (instant FakeLLM, no blocking needed)
+    configure_provider(FakeLLMProvider())
+
+    queue = _fresh_queue()
+
+    try:
+        async with Worker(
+            pydantic_client,
+            task_queue=queue,
+            workflows=[VaultManagerStub, ReadVaultWorkflow, FilerIngestionWorkflow],
+            activities=_read_activities(),
+            activity_executor=ThreadPoolExecutor(max_workers=4),
+        ):
+            async with Worker(
+                pydantic_client,
+                task_queue=QUEUE_MUTATION,
+                workflows=[RecordingWriteVaultStub],  # Only stub, not real WriteVaultWorkflow
+                activities=[
+                    record_write_dispatch,
+                    real_save_note,
+                    real_delete_note,
+                    noop_git_pull,
+                    noop_git_commit,
+                    noop_git_push,
+                ],
+                activity_executor=ThreadPoolExecutor(max_workers=2),
+            ):
+                # Start VaultManagerStub
+                stub_handle = await pydantic_client.start_workflow(
+                    VaultManagerStub.run,
+                    id=VAULT_MANAGER_ID,
+                    task_queue=queue,
+                    id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
+                )
+
+                try:
+                    # Start FilerIngestionWorkflow
+                    handle = await pydantic_client.start_workflow(
+                        FilerIngestionWorkflow.run,
+                        FilerIngestionInput(
+                            vault_path=str(tmp_vault),
+                            source_path="00. Inbox/0. Capture/new-capture-note.md",
+                            context_code="TEST-P01",
+                        ),
+                        id=f"filer-struct-{uuid.uuid4().hex[:4]}",
+                        task_queue=queue,
+                    )
+
+                    # Poll until awaiting_approval
+                    loop = asyncio.get_event_loop()
+                    deadline = loop.time() + 10.0
+                    while loop.time() < deadline:
+                        status = await handle.query(FilerIngestionWorkflow.get_status)
+                        proposal = await handle.query(FilerIngestionWorkflow.get_draft_proposal)
+                        if status == "awaiting_approval" and proposal is not None:
+                            break
+                        await asyncio.sleep(0.1)
+                    else:
+                        raise AssertionError(
+                            f"Workflow did not reach awaiting_approval; "
+                            f"final status={status}, proposal={proposal}"
+                        )
+
+                    # Send approve signal
+                    await handle.signal(FilerIngestionWorkflow.approve)
+
+                    # Await result
+                    result = await handle.result()
+
+                    # STRUCTURAL ASSERTIONS
+                    # Assert exactly one child dispatch was recorded
+                    assert len(_RECORDED) == 1, f"Expected 1 recorded dispatch, got {len(_RECORDED)}"
+
+                    save_paths, delete_paths = _RECORDED[0]
+
+                    # Assert save path is the proposed path
+                    expected_save_path = "30. Areas/1. Test Area/AREA - Filed Note.md"
+                    assert save_paths == [expected_save_path], (
+                        f"Expected save_paths=['{expected_save_path}'], got {save_paths}"
+                    )
+
+                    # Assert delete path is the source inbox path
+                    expected_delete_path = "00. Inbox/0. Capture/new-capture-note.md"
+                    assert delete_paths == [expected_delete_path], (
+                        f"Expected delete_paths=['{expected_delete_path}'], got {delete_paths}"
+                    )
+
+                    # Assert result and status
+                    assert result == "filed", f"Expected result='filed', got {result}"
+
+                    final_status = await handle.query(FilerIngestionWorkflow.get_status)
+                    assert final_status == "complete", f"Expected status='complete', got {final_status}"
+
+                    # Verify vault state
+                    proposed_path = tmp_vault / "30. Areas" / "1. Test Area" / "AREA - Filed Note.md"
+                    assert proposed_path.exists(), f"Proposed file not found at {proposed_path}"
+
+                    source_path = tmp_vault / "00. Inbox" / "0. Capture" / "new-capture-note.md"
+                    assert not source_path.exists(), f"Source inbox file still exists at {source_path}"
+
+                finally:
+                    await stub_handle.terminate()
+
+    finally:
+        # Reset global state
+        configure_provider(None)
