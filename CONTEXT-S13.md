@@ -1,4 +1,26 @@
 ---
+step_id: S13
+step_slug: github-runner-refactor
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S13-github-runner-refactor.md
+attempts: 0
+bubble_hash: 7408c269495e80f8d01e960015b269928aebf61fef0cb768973073563290e451
+---
+## Goal
+See the bubble body below (`OBSE-P5-S13-github-runner-refactor.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S13
@@ -146,3 +168,10 @@ jobs:
             --workflow FilerIngestionWorkflow \
             --source-path "${{ github.event.commits[0].added[0] }}"
 ```
+
+## Steering from prior steps
+- [S04] Use underscores not hyphens in Python package directories so imports resolve — applicable because S13 creates `apps/github_runner/` which `trigger.py` and its tests must import from
+- [S04] Local imports use `from packages.shared.models import ...`, not `from shared.models` — applicable because the §8 `trigger.py` skeleton uses `from shared.models` which won't resolve under the editable install layout
+- [S06] Module-level `_provider` plus a `configure_provider()` injector enables clean test substitution without monkeypatching — applicable because `trigger.py` needs the same shape for the Temporal Client so the mock-client test in `test_trigger.py` can swap it in
+- [S07] Hold the Temporal `Client` at module scope with a `configure_client()` injector for testability — directly applicable to `trigger.py`, whose tests must mock `temporalio.client.Client` and assert `start_workflow` calls
+- [S11] Every acceptance criterion must be explicitly asserted in tests, not queried and discarded — applicable because S13's six ACs (unknown-workflow exit 1, absence of `gitpython`/`google-generativeai`/`frontmatter`, correct input dataclass construction) each need a direct assertion or the step will be rejected
