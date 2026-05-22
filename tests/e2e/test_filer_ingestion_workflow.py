@@ -86,7 +86,7 @@ class VaultManagerStub:
 
     @workflow.run
     async def run(self) -> None:
-        await asyncio.sleep(3600)
+        await asyncio.sleep(86400 * 8)  # 8 days; C3 timeout test advances 1 week + 1 second
 
 
 # ---------------------------------------------------------------------------
