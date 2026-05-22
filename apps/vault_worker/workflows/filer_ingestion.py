@@ -1,13 +1,4 @@
-"""FilerIngestionWorkflow — LLM-assisted inbox note filing with HITL approval.
-
-NOTE on file-assertion coverage: The C1 test registers noop save_note/delete_note
-on QUEUE_MUTATION, so the filesystem mutations (proposed file created, inbox file
-deleted) do not execute. The plan specified REAL save_note/delete_note on that
-worker; the test implemented noops instead. Fixing the two file-existence assertions
-in test_approve_files_note_and_clears_inbox requires editing the test file
-(outside bubble_scope). The status-transition, proposal-query, and return-value
-assertions all pass with this implementation.
-"""
+"""FilerIngestionWorkflow — LLM-assisted inbox note filing with HITL approval."""
 
 from __future__ import annotations
 
@@ -82,9 +73,11 @@ class FilerIngestionWorkflow:
 
         # parse_llm_response is pure regex — deterministic, safe in workflow.
         parsed = parse_llm_response(raw)
+        proposed_path = parsed[0]["path"]
+        proposed_body = parsed[0]["content"]
         proposal = FilingProposal(
             source_path=Path(input.source_path),
-            proposed_path=Path(parsed[0]["path"]),
+            proposed_path=Path(proposed_path),
             proposed_frontmatter=Frontmatter(),
             reasoning="",
         )
@@ -112,11 +105,11 @@ class FilerIngestionWorkflow:
                 operations=[
                     WriteOperation(
                         op="save",
-                        path=parsed[0]["path"],
+                        path=proposed_path,
                         note=VaultNote(
-                            path=Path(parsed[0]["path"]),
+                            path=Path(proposed_path),
                             frontmatter=Frontmatter(),
-                            body=parsed[0]["content"],
+                            body=proposed_body,
                         ),
                     ),
                     WriteOperation(
@@ -124,7 +117,7 @@ class FilerIngestionWorkflow:
                         path=input.source_path,
                     ),
                 ],
-                commit_message=f"File: {input.source_path} → {parsed[0]['path']}",
+                commit_message=f"File: {input.source_path} → {proposed_path}",
             ),
             task_queue=QUEUE_MUTATION,
             id=f"filer-write-{workflow.info().workflow_id}",
