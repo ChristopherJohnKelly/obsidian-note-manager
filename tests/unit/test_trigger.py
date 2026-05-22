@@ -2,6 +2,8 @@
 import ast
 import pathlib
 import re
+import subprocess
+import sys
 import pytest
 from unittest.mock import AsyncMock
 from apps.github_runner import trigger
@@ -21,6 +23,30 @@ def test_unknown_workflow_returns_1_with_stderr_message(capsys):
 
     captured = capsys.readouterr()
     assert "Unknown workflow: UnknownWorkflow" in captured.err
+
+
+def test_entrypoint_unknown_workflow_subprocess():
+    """Test that trigger.py as a script exits 1 with valid workflow list in stderr."""
+    # Resolve absolute path to trigger.py
+    trigger_path = pathlib.Path(__file__).parent.parent.parent / 'apps' / 'github_runner' / 'trigger.py'
+
+    # Run as subprocess with no network (TEMPORAL_HOST unset)
+    result = subprocess.run(
+        [sys.executable, str(trigger_path), "--workflow", "UnknownWorkflow"],
+        capture_output=True,
+        text=True
+    )
+
+    # Assert return code is 1
+    assert result.returncode == 1
+
+    # Assert stderr contains the error message and both valid workflow names
+    assert "Unknown workflow: UnknownWorkflow" in result.stderr
+    assert "NightWatchmanWorkflow" in result.stderr
+    assert "FilerIngestionWorkflow" in result.stderr
+
+    # Assert stdout is empty
+    assert result.stdout.strip() == ""
 
 
 def test_vault_manager_workflow_not_in_workflows():
