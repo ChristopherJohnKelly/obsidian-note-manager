@@ -450,3 +450,111 @@ async def test_reject_leaves_vault_unchanged(
     finally:
         # Reset global state
         configure_provider(None)
+
+
+# ---------------------------------------------------------------------------
+# C3: Timeout path E2E test
+# ---------------------------------------------------------------------------
+
+
+async def test_filer_expires_after_one_week():
+    """C3: FilerIngestionWorkflow timeout path (1-week wait_condition).
+
+    Uses fresh function-scoped time-skipping environment (not shared session
+    fixture) to avoid RPC timeout on virtual 1-week skip.
+
+    Asserts:
+    - Workflow wait_condition times out after 1 week + 1 second
+    - Result is "expired"
+    - Vault remains unchanged: proposed file not created, source inbox file still present
+    - No approval/rejection signal sent (workflow expires naturally)
+    """
+    # Copy dummy vault to tmp for state verification
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tmp_path = Path(temp_dir)
+        dummy_vault = Path(__file__).parent.parent / "fixtures" / "dummy_vault"
+        tmp_vault = tmp_path / "vault"
+        shutil.copytree(dummy_vault, tmp_vault)
+
+        # Configure providers (instant FakeLLM)
+        configure_provider(FakeLLMProvider())
+
+        # Fresh time-skipping environment (function-scoped, not shared)
+        async with WorkflowEnvironment.start_time_skipping() as env:
+            # Build pydantic client from env's service client
+            pydantic_client = Client(
+                service_client=env.client.service_client,
+                namespace=env.client.namespace,
+                data_converter=pydantic_data_converter,
+            )
+            configure_client(pydantic_client)
+
+            queue = _fresh_queue()
+
+            try:
+                async with Worker(
+                    pydantic_client,
+                    task_queue=queue,
+                    workflows=[VaultManagerStub, ReadVaultWorkflow, FilerIngestionWorkflow],
+                    activities=_read_activities(),
+                    activity_executor=ThreadPoolExecutor(max_workers=4),
+                ):
+                    async with Worker(
+                        pydantic_client,
+                        task_queue=QUEUE_MUTATION,
+                        workflows=[WriteVaultWorkflow],
+                        activities=_mutation_activities(),
+                        activity_executor=ThreadPoolExecutor(max_workers=2),
+                    ):
+                        # Start VaultManagerStub
+                        stub_handle = await pydantic_client.start_workflow(
+                            VaultManagerStub.run,
+                            id=VAULT_MANAGER_ID,
+                            task_queue=queue,
+                            id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
+                        )
+
+                        try:
+                            # Start FilerIngestionWorkflow
+                            handle = await pydantic_client.start_workflow(
+                                FilerIngestionWorkflow.run,
+                                FilerIngestionInput(
+                                    vault_path=str(tmp_vault),
+                                    source_path="00. Inbox/0. Capture/new-capture-note.md",
+                                    context_code="TEST-P01",
+                                ),
+                                id=f"filer-timeout-{uuid.uuid4().hex[:4]}",
+                                task_queue=queue,
+                            )
+
+                            # Do NOT send any signal; let timeout expire naturally
+                            # Advance time by 1 week + 1 second to trigger wait_condition timeout
+                            await env.sleep(timedelta(weeks=1, seconds=1))
+
+                            # Await result; should be "expired" due to timeout
+                            result = await handle.result()
+
+                            # Assertions on final state
+                            assert result == "expired", f"Expected result='expired', got {result}"
+
+                            # Verify vault is unchanged
+                            # Proposed file should NOT exist
+                            proposed_path = tmp_vault / "30. Areas" / "1. Test Area" / "AREA - Filed Note.md"
+                            assert (
+                                not proposed_path.exists()
+                            ), f"Proposed file should not exist at {proposed_path}"
+
+                            # Source inbox file should still exist (unchanged)
+                            source_path = tmp_vault / "00. Inbox" / "0. Capture" / "new-capture-note.md"
+                            assert (
+                                source_path.exists()
+                            ), f"Source inbox file should still exist at {source_path}"
+
+                        finally:
+                            await stub_handle.terminate()
+
+            finally:
+                # Reset providers and client
+                configure_provider(None)
+                configure_client(None)
