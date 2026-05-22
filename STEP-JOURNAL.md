@@ -74,3 +74,14 @@ ts | node | verdict | classification | novel | budget_spent | budget_remaining |
 2026-05-22T17:45:38Z | COMPILE_CHECK | ok | - | - | 0 | 20 | cycle=C6
 2026-05-22T17:45:40Z | GREENCHECK | ok | - | - | 0 | 20 | cycle=C6
 2026-05-22T17:45:54Z | REFACTOR | REFACTOR:DONE | - | - | 0 | 20 | cycle=C6 diff present model=claude-sonnet-4-6 kind=happy tokens_in=3 tokens_out=387 cache_read=34415
+2026-05-22T17:45:56Z | REFACTOR_VERIFY | ok | - | - | 0 | 20 | cycle=C6
+2026-05-22T17:46:11Z | REVIEW_REFACTOR | REVIEW_REFACTOR:ADVANCE | - | - | 0 | 20 | cycle=C6 model=claude-opus-4-7 kind=happy tokens_in=5 tokens_out=591 cache_read=49569
+2026-05-22T17:46:11Z | CYCLE_NEXT | ADVANCE | - | - | 0 | 20 | cycle=C6 resolved
+2026-05-22T17:46:11Z | CYCLE_START | selected | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:46:57Z | WRITE_TEST | WRITE_TEST:DONE | - | - | 0 | 20 | cycle=C7 model=claude-haiku-4-5 kind=happy tokens_in=51 tokens_out=3954 cache_read=287206
+2026-05-22T17:47:14Z | WRITE_SCRIPT | WRITE_SCRIPT:ERROR:no_change | - | - | 0 | 20 | cycle=C7 phase=happy underlying=claude_no_change exit=1 script_present model=claude-haiku-4-5 kind=happy tokens_in=16 tokens_out=1499 cache_read=62846
+2026-05-22T17:47:16Z | REDCHECK | ok | - | - | 0 | 20 | cycle=C7 exit=1 signature_match
+2026-05-22T17:47:44Z | WRITE_CODE | WRITE_CODE:DONE | - | - | 0 | 20 | cycle=C7 model=claude-sonnet-4-6 kind=happy tokens_in=5 tokens_out=710 cache_read=92980
+2026-05-22T17:47:44Z | COMPILE_CHECK | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:47:46Z | GREENCHECK | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:48:05Z | REFACTOR | REFACTOR:DONE | - | - | 0 | 20 | cycle=C7 diff present model=claude-sonnet-4-6 kind=happy tokens_in=4 tokens_out=667 cache_read=56361

@@ -72,7 +72,7 @@ async def amain(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.workflow not in WORKFLOWS:
-        print(f"Unknown workflow: {args.workflow}. Valid workflows: " + ", ".join(sorted(WORKFLOWS)), file=sys.stderr)
+        print(f"Unknown workflow: {args.workflow}. Valid workflows: {', '.join(sorted(WORKFLOWS))}", file=sys.stderr)
         return 1
 
     client = _client or await Client.connect(os.environ.get("TEMPORAL_HOST", "localhost:7233"))
