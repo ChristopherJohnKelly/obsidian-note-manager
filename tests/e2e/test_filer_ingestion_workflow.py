@@ -481,7 +481,7 @@ async def test_filer_expires_after_one_week():
         configure_provider(FakeLLMProvider())
 
         # Fresh time-skipping environment (function-scoped, not shared)
-        async with WorkflowEnvironment.start_time_skipping() as env:
+        async with await WorkflowEnvironment.start_time_skipping() as env:
             # Build pydantic client from env's service client
             pydantic_client = Client(
                 service_client=env.client.service_client,
