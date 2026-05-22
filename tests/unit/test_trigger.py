@@ -168,3 +168,26 @@ def test_watchman_yml_exists_and_has_required_content():
 
     # Assert required workflow
     assert '--workflow NightWatchmanWorkflow' in content, "watchman.yml must contain --workflow NightWatchmanWorkflow"
+
+
+def test_trigger_py_is_self_contained():
+    """Assert trigger.py has no imports from packages.* module."""
+    # Read trigger.py source
+    trigger_file = pathlib.Path(__file__).parent.parent.parent / 'apps' / 'github_runner' / 'trigger.py'
+    source = trigger_file.read_text()
+
+    # Parse and walk AST to collect all imported modules
+    tree = ast.parse(source)
+    imported_modules = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_modules.add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported_modules.add(node.module)
+
+    # Assert no packages.* imports
+    packages_imports = [m for m in imported_modules if m.startswith('packages')]
+    assert not packages_imports, f"trigger.py must not import from packages.*: {packages_imports}"
