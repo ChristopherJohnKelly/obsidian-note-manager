@@ -191,3 +191,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S11 rejection — 2026-05-05T12:03:50Z
 - REJECTION: Acceptance criteria #1 (status="drafting" during LLM) and #6 (get_draft_proposal returns None before LLM completes, tested with start_time_skipping) are not asserted in any test; approve test queries get_draft_proposal but discards the result instead of asserting None
+
+## S13 rejection — 2026-05-22T17:18:05Z
+- REJECTION: trigger.py hardcodes task_queue="obsidian-note-manager" instead of TRD-mandated "vault-default" (TRD §4.5); workflows would be dispatched to a queue no worker polls, breaking the github-runner→vault-worker contract.
