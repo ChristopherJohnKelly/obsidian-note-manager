@@ -1,4 +1,26 @@
 ---
+step_id: S11
+step_slug: filer-ingestion-workflow
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S11-filer-ingestion-workflow.md
+attempts: 0
+bubble_hash: 283997df1e69e85b4990661aa9fb15f85e303064e5b1401601e987c873aa41b1
+---
+## Goal
+See the bubble body below (`OBSE-P5-S11-filer-ingestion-workflow.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S11
@@ -195,3 +217,20 @@ async def test_filer_expires_after_one_week(temporal_client):
             result = await handle.result()
     assert result == "expired"
 ```
+
+## Steering from prior steps
+- [S03] `WorkflowEnvironment.start_time_skipping()` is the right in-process environment for Temporal tests — applicable here because the timeout test and the "draft_proposal is None before LLM completes" test both rely on time-skipping.
+- [S03] Sync `def` activities need `activity_executor=ThreadPoolExecutor(...)` on the test Worker — applicable here because the E2E tests register sync LLM/vault activities alongside the FilerIngestionWorkflow.
+- [S03] `asyncio_mode = "auto"` is required for session-scoped async fixtures — applicable here because the new E2E module reuses the shared `temporal_client` / `temporal_env` fixtures.
+- [S04] `VaultNote.path: Path` is not JSON-serialisable with Temporal's default converter; prefer `list[str]` returns or configure `pydantic_data_converter` — applicable here because FilerIngestionWorkflow consumes `ReadVaultWorkflow` output before the LLM call.
+- [S06] LLM Activities use a module-level `_provider` + `configure_provider()` injector and an autouse FakeLLMProvider fixture — applicable here because the approve/reject/timeout/dispatch tests must inject a deterministic proposal without real Gemini calls.
+- [S06] Importing the retry policy inside `@workflow.run` (or accepting the sandbox UserWarning) avoids sandbox import errors — applicable here because FilerIngestionWorkflow calls the LLM activity with `LLM_RETRY_POLICY` at the call site.
+- [S07] When the SDK lacks a cross-workflow Update primitive, use an activity shim — do NOT rewrite the TRD contract — applicable here because FilerIngestionWorkflow's `ReadVaultWorkflow` child still depends on the Update-via-activity-shim path; don't "fix" it by switching to signals.
+- [S07] Test stubs must register `@workflow.update(name=UPD_ENSURE_SYNCED)` only, with no signal handler shadowing it — applicable here because all three behavioural tests register a `VaultManagerStub` and must mirror that exact handshake.
+- [S09] `workflow.wait_condition(..., timeout=…)` RAISES `asyncio.TimeoutError` on expiry — does NOT return False — applicable here because the bubble's reference snippet uses `timed_out = not await workflow.wait_condition(...)`, which will fail the workflow instead of returning `"expired"`; wrap in try/except `asyncio.TimeoutError`.
+- [S09] Session-scoped time-skipping `WorkflowEnvironment` accumulates history; virtual sleeps longer than a few minutes after 200+ tests hit the bridge's 30s RPC timeout — applicable here because the 1-week-skip timeout test needs a function-scoped fresh env to avoid `RPCError: Timeout expired`.
+- [S09] Use `handle.terminate()` (not `handle.cancel()`) to clean up long-running wait_condition workflows in test teardown — applicable here because the approve/reject/timeout tests leave a workflow blocked on `wait_condition` if a signal is never sent.
+- [S09] `create_workers(client)` can only run once per client because Temporal forbids overlapping Worker registrations on the same task queue — applicable here because each E2E test must reuse a single worker setup or build per-test workers on uuid queues, not call `create_workers` repeatedly on the session client.
+- [Pytest] One pytest invocation at a time; check for stuck processes before launching another — applicable here because the four E2E tests are long-running (LLM + time-skip) and overlapping runs corrupt the shared time-skipping env.
+- [Exploratory tests] Name scratch/debug tests `test_explore_*` / `test_debug_*` and stay under 3 such files to avoid wind-down — applicable here because the structural dispatch test will likely need iterative experiments to assert child-workflow invocation under time-skipping.
+- [S11:C1] Prior attempt was rejected for not asserting AC#1 (status=="drafting" during LLM) and AC#6 (`get_draft_proposal` returns `None` before LLM completes); the approve test queried but discarded the value — applicable here because both assertions must be written explicitly, using time-skipping to pause mid-LLM, and the approve test must assert (not just call) `get_draft_proposal`.
