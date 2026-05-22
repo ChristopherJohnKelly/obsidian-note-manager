@@ -1,4 +1,6 @@
 """Tests for the trigger module CLI."""
+import ast
+import pathlib
 import pytest
 from unittest.mock import AsyncMock
 from apps.github_runner import trigger
@@ -60,3 +62,40 @@ def test_filer_ingestion_workflow_starts_with_source_path():
     # Check that the input object has the correct source_path
     input_obj = call_args[0][1]
     assert input_obj.source_path == source_path
+
+
+def test_trigger_py_imports_no_forbidden_modules():
+    """Assert trigger.py does not import git, frontmatter, generativeai, or vault_worker."""
+    # Read trigger.py source
+    trigger_file = pathlib.Path(__file__).parent.parent.parent / 'apps' / 'github_runner' / 'trigger.py'
+    source = trigger_file.read_text()
+
+    # Parse and walk AST to collect all imported modules
+    tree = ast.parse(source)
+    imported_modules = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_modules.add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported_modules.add(node.module)
+
+    # Define forbidden import roots (AC4)
+    forbidden_prefixes = {
+        'git',
+        'frontmatter',
+        'generativeai',
+        'google.generativeai',
+        'apps.vault_worker',
+    }
+
+    # Find violations
+    violations = []
+    for module in imported_modules:
+        for prefix in forbidden_prefixes:
+            if module.startswith(prefix):
+                violations.append(module)
+
+    assert not violations, f"trigger.py imports forbidden modules: {violations}"
