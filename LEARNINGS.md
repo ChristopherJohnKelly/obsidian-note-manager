@@ -194,3 +194,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S13 rejection — 2026-05-22T17:18:05Z
 - REJECTION: trigger.py hardcodes task_queue="obsidian-note-manager" instead of TRD-mandated "vault-default" (TRD §4.5); workflows would be dispatched to a queue no worker polls, breaking the github-runner→vault-worker contract.
+
+## S14 rejection — 2026-05-22T19:40:24Z
+- REJECTION: AC1 missing session-storage workflow_id reconnect/restore, AC4 missing get_history polling loop, plus `CopilotTemporalClient(client)` bug passes None instead of `tc` in app.py:14
