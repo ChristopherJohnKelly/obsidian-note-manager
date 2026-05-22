@@ -99,3 +99,38 @@ def test_trigger_py_imports_no_forbidden_modules():
                 violations.append(module)
 
     assert not violations, f"trigger.py imports forbidden modules: {violations}"
+
+
+def test_requirements_txt_exists_and_has_minimal_deps():
+    """Assert requirements.txt exists and contains only temporalio and python-dotenv."""
+    requirements_file = pathlib.Path(__file__).parent.parent.parent / 'apps' / 'github_runner' / 'requirements.txt'
+
+    # Will raise FileNotFoundError if file doesn't exist (expected RED)
+    content = requirements_file.read_text()
+
+    # Assert required dependencies are present
+    assert 'temporalio' in content, "requirements.txt must contain temporalio"
+    assert 'python-dotenv' in content, "requirements.txt must contain python-dotenv"
+
+    # Assert no vault, git, or Gemini dependencies
+    forbidden_deps = ['gitpython', 'GitPython', 'google-generativeai', 'frontmatter']
+    for dep in forbidden_deps:
+        assert dep not in content.lower(), f"requirements.txt must not contain {dep}"
+
+
+def test_dockerfile_exists_and_references_trigger_and_requirements():
+    """Assert Dockerfile exists and references trigger.py and requirements.txt."""
+    dockerfile = pathlib.Path(__file__).parent.parent.parent / 'apps' / 'github_runner' / 'Dockerfile'
+
+    # Will raise FileNotFoundError if file doesn't exist (expected RED)
+    content = dockerfile.read_text()
+
+    # Assert references to key files
+    assert 'trigger.py' in content, "Dockerfile must reference trigger.py"
+    assert 'requirements.txt' in content, "Dockerfile must reference requirements.txt"
+
+    # Assert no vault, git, or Gemini dependencies (case-insensitive)
+    content_lower = content.lower()
+    forbidden_patterns = ['src_v2', 'gitpython', 'gemini']
+    for pattern in forbidden_patterns:
+        assert pattern not in content_lower, f"Dockerfile must not contain {pattern}"
