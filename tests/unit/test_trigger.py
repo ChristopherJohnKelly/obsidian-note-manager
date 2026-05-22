@@ -1,6 +1,7 @@
 """Tests for the trigger module CLI."""
 import ast
 import pathlib
+import re
 import pytest
 from unittest.mock import AsyncMock
 from apps.github_runner import trigger
@@ -134,3 +135,36 @@ def test_dockerfile_exists_and_references_trigger_and_requirements():
     forbidden_patterns = ['src_v2', 'gitpython', 'gemini']
     for pattern in forbidden_patterns:
         assert pattern not in content_lower, f"Dockerfile must not contain {pattern}"
+
+
+def test_ingest_yml_exists_and_has_required_content():
+    """Assert .github/workflows/ingest.yml exists with required content and no forbidden patterns."""
+    ingest_yml = pathlib.Path(__file__).parent.parent.parent / '.github' / 'workflows' / 'ingest.yml'
+
+    # Will raise FileNotFoundError if file doesn't exist (expected RED)
+    content = ingest_yml.read_text()
+
+    # Assert required content is present
+    assert 'trigger.py' in content, "ingest.yml must reference trigger.py"
+    assert '--workflow FilerIngestionWorkflow' in content, "ingest.yml must contain --workflow FilerIngestionWorkflow"
+    assert '--source-path' in content, "ingest.yml must contain --source-path"
+
+    # Assert no vault checkout or forbidden environment variables
+    forbidden_patterns = ['actions/checkout', 'OBSIDIAN_VAULT_ROOT', 'GEMINI_API_KEY', 'src_v2']
+    for pattern in forbidden_patterns:
+        assert pattern not in content, f"ingest.yml must not contain {pattern}"
+
+
+def test_watchman_yml_exists_and_has_required_content():
+    """Assert .github/workflows/watchman.yml exists with cron schedule and required workflow."""
+    watchman_yml = pathlib.Path(__file__).parent.parent.parent / '.github' / 'workflows' / 'watchman.yml'
+
+    # Will raise FileNotFoundError if file doesn't exist (expected RED)
+    content = watchman_yml.read_text()
+
+    # Assert cron pattern: 0 2 * * * (matches with optional quotes)
+    cron_pattern = r"cron:\s*['\"]?0 2 \* \* \*"
+    assert re.search(cron_pattern, content), "watchman.yml must contain cron schedule '0 2 * * *'"
+
+    # Assert required workflow
+    assert '--workflow NightWatchmanWorkflow' in content, "watchman.yml must contain --workflow NightWatchmanWorkflow"
