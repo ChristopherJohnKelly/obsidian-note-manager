@@ -3,7 +3,7 @@ step_id: S13
 step_slug: github-runner-refactor
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S13-github-runner-refactor.md
-attempts: 0
+attempts: 1
 bubble_hash: 7408c269495e80f8d01e960015b269928aebf61fef0cb768973073563290e451
 ---
 ## Goal
@@ -175,3 +175,8 @@ jobs:
 - [S06] Module-level `_provider` plus a `configure_provider()` injector enables clean test substitution without monkeypatching — applicable because `trigger.py` needs the same shape for the Temporal Client so the mock-client test in `test_trigger.py` can swap it in
 - [S07] Hold the Temporal `Client` at module scope with a `configure_client()` injector for testability — directly applicable to `trigger.py`, whose tests must mock `temporalio.client.Client` and assert `start_workflow` calls
 - [S11] Every acceptance criterion must be explicitly asserted in tests, not queried and discarded — applicable because S13's six ACs (unknown-workflow exit 1, absence of `gitpython`/`google-generativeai`/`frontmatter`, correct input dataclass construction) each need a direct assertion or the step will be rejected
+
+## Prior failures
+### Attempt 1
+Bubble is well-specified; Ralph's replan after the first FINAL_REVIEW:FAIL emitted CYCLE_START=done and never executed a remediation cycle, leaving the same `__main__` entrypoint and stderr-message defects unaddressed.
+
