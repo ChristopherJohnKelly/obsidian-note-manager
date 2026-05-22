@@ -3,7 +3,7 @@ step_id: S11
 step_slug: filer-ingestion-workflow
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S11-filer-ingestion-workflow.md
-attempts: 0
+attempts: 1
 bubble_hash: 283997df1e69e85b4990661aa9fb15f85e303064e5b1401601e987c873aa41b1
 ---
 ## Goal
@@ -234,3 +234,8 @@ async def test_filer_expires_after_one_week(temporal_client):
 - [Pytest] One pytest invocation at a time; check for stuck processes before launching another — applicable here because the four E2E tests are long-running (LLM + time-skip) and overlapping runs corrupt the shared time-skipping env.
 - [Exploratory tests] Name scratch/debug tests `test_explore_*` / `test_debug_*` and stay under 3 such files to avoid wind-down — applicable here because the structural dispatch test will likely need iterative experiments to assert child-workflow invocation under time-skipping.
 - [S11:C1] Prior attempt was rejected for not asserting AC#1 (status=="drafting" during LLM) and AC#6 (`get_draft_proposal` returns `None` before LLM completes); the approve test queried but discarded the value — applicable here because both assertions must be written explicitly, using time-skipping to pause mid-LLM, and the approve test must assert (not just call) `get_draft_proposal`.
+
+## Prior failures
+### Attempt 1
+## Prior failures (attempt 2/5, FAIL:pingpong on C4 structural dispatch test)
+
