@@ -62,13 +62,11 @@ def _build_input(args):
             github_token=os.environ.get("GITHUB_TOKEN", ""),
             pr_branch=os.environ.get("PR_BRANCH", ""),
         )
-    elif args.workflow == FILER_INGESTION_WORKFLOW:
-        return FilerIngestionInput(
-            vault_path=os.environ.get("VAULT_PATH", ""),
-            source_path=args.source_path or "",
-            context_code=os.environ.get("CONTEXT_CODE", ""),
-        )
-    return None
+    return FilerIngestionInput(
+        vault_path=os.environ.get("VAULT_PATH", ""),
+        source_path=args.source_path or "",
+        context_code=os.environ.get("CONTEXT_CODE", ""),
+    )
 
 
 async def amain(argv=None) -> int:
