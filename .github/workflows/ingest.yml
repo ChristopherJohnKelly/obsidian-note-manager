@@ -12,4 +12,4 @@ jobs:
       - name: Run FilerIngestionWorkflow
         env:
           SOURCE_PATH: ${{ github.event.head_commit.modified[0] }}
-        run: python trigger.py --workflow FilerIngestionWorkflow --source-path "$SOURCE_PATH"
+        run: python3 trigger.py --workflow FilerIngestionWorkflow --source-path "$SOURCE_PATH"
