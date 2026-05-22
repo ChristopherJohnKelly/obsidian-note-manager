@@ -6,8 +6,8 @@ outcome: "pass"
 budget_spent: 0
 budget_remaining: 20
 final_review_verdict: "FINAL_REVIEW:PASS"
-journal_summary: "rows=52"
-generated_at: "2026-05-22T17:08:39Z"
+journal_summary: "rows=88"
+generated_at: "2026-05-22T17:50:26Z"
 ---
 
 # RALPH-OUTCOME — S13
@@ -70,3 +70,39 @@ ts | node | verdict | classification | novel | budget_spent | budget_remaining |
 2026-05-22T17:05:48Z | CYCLE_NEXT | ADVANCE | - | - | 0 | 20 | cycle=C5 resolved
 2026-05-22T17:05:48Z | ASSESS_BUBBLE_SCOPE | ok | - | - | 0 | 20 | 
 2026-05-22T17:08:38Z | FINAL_REVIEW | FINAL_REVIEW:PASS | - | - | 0 | 20 | model=claude-opus-4-7 kind=happy tokens_in=2107 tokens_out=12369 cache_read=386961
+2026-05-22T17:31:47Z | IN_VALIDATE | warn | - | - | 0 | 20 | residue=12_prior_cycle_commits
+2026-05-22T17:31:47Z | IN_VALIDATE | ok | - | - | 0 | 20 | loop-start
+2026-05-22T17:36:33Z | PLAN | PLAN:READY | - | - | 0 | 20 | artefact present model=claude-opus-4-7 kind=happy tokens_in=21 tokens_out=24314 cache_read=572557
+2026-05-22T17:36:33Z | PLAN_VALIDATE | fail | - | - | 0 | 20 | cycles[0].intent must be a string of length 1..120, got len=123;cycles[1].intent must be a string of length 1..120, got len=135
+2026-05-22T17:37:24Z | PLAN | PLAN:READY | - | - | 0 | 20 | artefact present model=claude-opus-4-7 kind=happy tokens_in=1976 tokens_out=3324 cache_read=285066
+2026-05-22T17:37:24Z | PLAN_VALIDATE | ok | - | - | 0 | 20 | 
+2026-05-22T17:37:24Z | CYCLE_START | done | - | - | 0 | 20 | 
+2026-05-22T17:37:25Z | ASSESS_BUBBLE_SCOPE | ok | - | - | 0 | 20 | 
+2026-05-22T17:38:42Z | FINAL_REVIEW | FINAL_REVIEW:FAIL: PLAN cycles C1/C2 were never executed (journal CYCLE_START=done) — trigger.py:9 still imports packages.shared.workflow_names and trigger.py:77 still prints a non-enumerating unknown-workflow message, so both cycles' exit criteria and remediation tests are absent. | - | - | 0 | 20 | model=claude-opus-4-7 kind=happy tokens_in=1968 tokens_out=4745 cache_read=123955
+2026-05-22T17:39:57Z | ASSESS_FEASIBLE | classified | CONTINUE | - | 0 | 20 | model=claude-opus-4-7 kind=happy tokens_in=1970 tokens_out=5915 cache_read=107227
+2026-05-22T17:44:31Z | PLAN | PLAN:READY | - | - | 0 | 20 | artefact present model=claude-opus-4-7 kind=happy tokens_in=2254 tokens_out=22771 cache_read=1085571
+2026-05-22T17:44:31Z | PLAN_VALIDATE | ok | - | - | 0 | 20 | 
+2026-05-22T17:44:31Z | CYCLE_START | selected | - | - | 0 | 20 | cycle=C6
+2026-05-22T17:45:01Z | WRITE_TEST | WRITE_TEST:DONE | - | - | 0 | 20 | cycle=C6 model=claude-haiku-4-5 kind=happy tokens_in=23 tokens_out=2629 cache_read=109718
+2026-05-22T17:45:21Z | WRITE_SCRIPT | WRITE_SCRIPT:ERROR:no_change | - | - | 0 | 20 | cycle=C6 phase=happy underlying=claude_no_change exit=1 script_present model=claude-haiku-4-5 kind=happy tokens_in=23 tokens_out=1864 cache_read=102726
+2026-05-22T17:45:23Z | REDCHECK | ok | - | - | 0 | 20 | cycle=C6 exit=1 signature_match
+2026-05-22T17:45:38Z | WRITE_CODE | WRITE_CODE:DONE | - | - | 0 | 20 | cycle=C6 model=claude-sonnet-4-6 kind=happy tokens_in=5 tokens_out=583 cache_read=93253
+2026-05-22T17:45:38Z | COMPILE_CHECK | ok | - | - | 0 | 20 | cycle=C6
+2026-05-22T17:45:40Z | GREENCHECK | ok | - | - | 0 | 20 | cycle=C6
+2026-05-22T17:45:54Z | REFACTOR | REFACTOR:DONE | - | - | 0 | 20 | cycle=C6 diff present model=claude-sonnet-4-6 kind=happy tokens_in=3 tokens_out=387 cache_read=34415
+2026-05-22T17:45:56Z | REFACTOR_VERIFY | ok | - | - | 0 | 20 | cycle=C6
+2026-05-22T17:46:11Z | REVIEW_REFACTOR | REVIEW_REFACTOR:ADVANCE | - | - | 0 | 20 | cycle=C6 model=claude-opus-4-7 kind=happy tokens_in=5 tokens_out=591 cache_read=49569
+2026-05-22T17:46:11Z | CYCLE_NEXT | ADVANCE | - | - | 0 | 20 | cycle=C6 resolved
+2026-05-22T17:46:11Z | CYCLE_START | selected | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:46:57Z | WRITE_TEST | WRITE_TEST:DONE | - | - | 0 | 20 | cycle=C7 model=claude-haiku-4-5 kind=happy tokens_in=51 tokens_out=3954 cache_read=287206
+2026-05-22T17:47:14Z | WRITE_SCRIPT | WRITE_SCRIPT:ERROR:no_change | - | - | 0 | 20 | cycle=C7 phase=happy underlying=claude_no_change exit=1 script_present model=claude-haiku-4-5 kind=happy tokens_in=16 tokens_out=1499 cache_read=62846
+2026-05-22T17:47:16Z | REDCHECK | ok | - | - | 0 | 20 | cycle=C7 exit=1 signature_match
+2026-05-22T17:47:44Z | WRITE_CODE | WRITE_CODE:DONE | - | - | 0 | 20 | cycle=C7 model=claude-sonnet-4-6 kind=happy tokens_in=5 tokens_out=710 cache_read=92980
+2026-05-22T17:47:44Z | COMPILE_CHECK | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:47:46Z | GREENCHECK | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:48:05Z | REFACTOR | REFACTOR:DONE | - | - | 0 | 20 | cycle=C7 diff present model=claude-sonnet-4-6 kind=happy tokens_in=4 tokens_out=667 cache_read=56361
+2026-05-22T17:48:06Z | REFACTOR_VERIFY | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:48:38Z | REVIEW_REFACTOR | REVIEW_REFACTOR:ADVANCE | - | - | 0 | 20 | cycle=C7 model=claude-opus-4-7 kind=happy tokens_in=5 tokens_out=565 cache_read=48662
+2026-05-22T17:48:38Z | CYCLE_NEXT | ADVANCE | - | - | 0 | 20 | cycle=C7 resolved
+2026-05-22T17:48:39Z | ASSESS_BUBBLE_SCOPE | ok | - | - | 0 | 20 | 
+2026-05-22T17:50:26Z | FINAL_REVIEW | FINAL_REVIEW:PASS | - | - | 0 | 20 | model=claude-opus-4-7 kind=happy tokens_in=2103 tokens_out=6790 cache_read=289914

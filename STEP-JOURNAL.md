@@ -85,3 +85,8 @@ ts | node | verdict | classification | novel | budget_spent | budget_remaining |
 2026-05-22T17:47:44Z | COMPILE_CHECK | ok | - | - | 0 | 20 | cycle=C7
 2026-05-22T17:47:46Z | GREENCHECK | ok | - | - | 0 | 20 | cycle=C7
 2026-05-22T17:48:05Z | REFACTOR | REFACTOR:DONE | - | - | 0 | 20 | cycle=C7 diff present model=claude-sonnet-4-6 kind=happy tokens_in=4 tokens_out=667 cache_read=56361
+2026-05-22T17:48:06Z | REFACTOR_VERIFY | ok | - | - | 0 | 20 | cycle=C7
+2026-05-22T17:48:38Z | REVIEW_REFACTOR | REVIEW_REFACTOR:ADVANCE | - | - | 0 | 20 | cycle=C7 model=claude-opus-4-7 kind=happy tokens_in=5 tokens_out=565 cache_read=48662
+2026-05-22T17:48:38Z | CYCLE_NEXT | ADVANCE | - | - | 0 | 20 | cycle=C7 resolved
+2026-05-22T17:48:39Z | ASSESS_BUBBLE_SCOPE | ok | - | - | 0 | 20 | 
+2026-05-22T17:50:26Z | FINAL_REVIEW | FINAL_REVIEW:PASS | - | - | 0 | 20 | model=claude-opus-4-7 kind=happy tokens_in=2103 tokens_out=6790 cache_read=289914
