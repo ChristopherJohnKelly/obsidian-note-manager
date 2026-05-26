@@ -200,3 +200,64 @@ This project is for personal use only.
 ---
 
 For detailed documentation, see the [docs/](docs/) folder.
+
+## Docker Images
+
+Three images are published to the GitHub Container Registry (GHCR). Pull and run examples below.
+
+### obsidian-vault-worker
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+
+docker run -e TEMPORAL_ADDRESS=localhost:7233 \
+           -e GEMINI_API_KEY=your_key \
+           -e OBSIDIAN_VAULT_PATH=/vault \
+           ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+```
+
+**Environment variables**
+
+| Variable | Description |
+|---|---|
+| `TEMPORAL_ADDRESS` | Temporal server host:port |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `OBSIDIAN_VAULT_PATH` | Path to the Obsidian vault inside the container |
+
+### obsidian-copilot-ui
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+
+docker run -e TEMPORAL_ADDRESS=localhost:7233 \
+           -e GEMINI_API_KEY=your_key \
+           -e OBSIDIAN_VAULT_PATH=/vault \
+           ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+```
+
+**Environment variables**
+
+| Variable | Description |
+|---|---|
+| `TEMPORAL_ADDRESS` | Temporal server host:port |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `OBSIDIAN_VAULT_PATH` | Path to the Obsidian vault inside the container |
+
+### obsidian-github-runner
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
+
+docker run -e TEMPORAL_ADDRESS=localhost:7233 \
+           -e OBSIDIAN_VAULT_PATH=/vault \
+           -e GITHUB_TOKEN=your_pat \
+           ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
+```
+
+**Environment variables**
+
+| Variable | Description |
+|---|---|
+| `TEMPORAL_ADDRESS` | Temporal server host:port |
+| `OBSIDIAN_VAULT_PATH` | Path to the Obsidian vault inside the container |
+| `GITHUB_TOKEN` | GitHub PAT for self-hosted runner registration |
