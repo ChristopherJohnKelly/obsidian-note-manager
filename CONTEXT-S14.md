@@ -1,4 +1,26 @@
 ---
+step_id: S14
+step_slug: copilot-ui-refactor
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S14-copilot-ui-refactor.md
+attempts: 0
+bubble_hash: 0f8313ebe4a944f71a85f2c023c8ef13b8cb6a3c507d5f934cfb07ec3e691164
+---
+## Goal
+See the bubble body below (`OBSE-P5-S14-copilot-ui-refactor.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S14
@@ -145,3 +167,15 @@ async def on_reject(action: cl.Action):
     await temporal.send_filer_decision(action.value, approved=False)
     await cl.Message(content=f"Rejected.").send()
 ```
+
+## Steering from prior steps
+- [S14:C2] `cl.user_session` is not browser storage; reconnect needs a running-workflow check plus history restore via Query — applicable here because AC1 demands workflow_id persistence that survives browser refresh, which is exactly what last cycle missed
+- [S14:C2] After sending a Signal, `get_chat_history` must be polled in a loop until a new assistant message appears, not called once — applicable here because AC4 explicitly requires the polling loop and a single call was the prior rejection
+- [S14:C1] Don't pass `None` into `CopilotTemporalClient(...)`; wire the real connected client into app.py — applicable here because app.py constructs and uses the helper around every Chainlit handler
+- [S13] Don't hardcode arbitrary task queue strings; use the TRD-mandated names so the workflow lands on the queue a worker actually polls — applicable here because `start_copilot_session()` must dispatch `CopilotSessionWorkflow` to the queue vault-worker polls
+- [S04] Python package directories must use underscores, not hyphens — applicable here because the bubble specifies `apps/copilot_ui/` and Python cannot import hyphenated paths
+- [S03] `apps/copilot-ui/app.py` must sit in the coverage `omit` list before the threshold check — applicable here because Chainlit's entrypoint cannot be unit-tested and will otherwise drag coverage below 90%
+- [S03] Run the FULL test suite, not just the new test file, when checking the 90% coverage threshold — applicable here because running only `test_copilot_ui.py` won't exercise `packages/shared`
+- [S11:rejection] Tests must assert the queried value, not discard the Query result — applicable here because the TDD tests for `get_chat_history`/`list_pending_filer_proposals` need to assert returned content, not just that the call happened
+- [Pytest-discipline] Only one `pytest` invocation at a time; `ps`/`pkill` stragglers before re-running — applicable here because the TDD plan runs pytest multiple times and stuck subprocesses will mask real failures
+- [Exploratory-test-naming] Scratch/debug tests must use `test_explore_*` (etc.) prefixes; >3 such files trips a wind-down — applicable here because Chainlit's hard-to-unit-test lifecycle may tempt throwaway probes around `temporal_client.py`
