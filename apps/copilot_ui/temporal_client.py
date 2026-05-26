@@ -1,7 +1,13 @@
 from temporalio.client import Client
 
-from packages.shared.models import ChatMessage
-from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT, QRY_GET_HISTORY
+from packages.shared.models import ChatMessage, FilingProposal
+from packages.shared.workflow_names import (
+    COPILOT_SESSION_WORKFLOW,
+    QUEUE_DEFAULT,
+    QRY_GET_DRAFT_PROPOSAL,
+    QRY_GET_HISTORY,
+    QRY_GET_STATUS,
+)
 
 
 class CopilotTemporalClient:
@@ -26,3 +32,17 @@ class CopilotTemporalClient:
         handle = self.client.get_workflow_handle(workflow_id)
         raw = await handle.query(QRY_GET_HISTORY)
         return [ChatMessage(**d) for d in raw]
+
+    async def list_pending_filer_proposals(self) -> list[tuple[str, FilingProposal]]:
+        out: list[tuple[str, FilingProposal]] = []
+        q = "WorkflowType = 'FilerIngestionWorkflow' AND ExecutionStatus = 'Running'"
+        async for ex in self.client.list_workflows(q):
+            h = self.client.get_workflow_handle(ex.id)
+            status = await h.query(QRY_GET_STATUS)
+            if status != "awaiting_approval":
+                continue
+            raw = await h.query(QRY_GET_DRAFT_PROPOSAL)
+            if raw is None:
+                continue
+            out.append((ex.id, FilingProposal(**raw)))
+        return out
