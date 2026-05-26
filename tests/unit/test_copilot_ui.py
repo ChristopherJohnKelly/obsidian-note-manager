@@ -178,3 +178,31 @@ async def test_list_pending_filer_proposals_returns_id_and_filing_proposal_tuple
     assert isinstance(result[0][1], FilingProposal)
     assert str(result[0][1].source_path) == "/inbox/a.md"
     assert result[0][1].reasoning == "r1"
+
+
+@pytest.mark.parametrize("approved,expected_signal", [
+    (True, "approve"),
+    (False, "reject"),
+])
+async def test_send_filer_decision_signals_approve_or_reject(approved, expected_signal):
+    """CopilotTemporalClient.send_filer_decision signals 'approve' when
+    approved=True, or 'reject' when approved=False.
+    """
+    # Setup
+    mock_client = MagicMock(spec=Client)
+    mock_handle = MagicMock()
+    mock_handle.signal = AsyncMock()
+    mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
+
+    client = CopilotTemporalClient(mock_client)
+
+    # Execute
+    await client.send_filer_decision("filer-1", approved=approved)
+
+    # Assert get_workflow_handle was called with the workflow id
+    assert mock_client.get_workflow_handle.call_args.args == ("filer-1",)
+
+    # Assert signal was called once with the expected signal
+    assert mock_handle.signal.await_count == 1
+    call_args = mock_handle.signal.call_args
+    assert call_args.args[0] == expected_signal
