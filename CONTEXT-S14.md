@@ -3,7 +3,7 @@ step_id: S14
 step_slug: copilot-ui-refactor
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S14-copilot-ui-refactor.md
-attempts: 0
+attempts: 1
 bubble_hash: 0f8313ebe4a944f71a85f2c023c8ef13b8cb6a3c507d5f934cfb07ec3e691164
 ---
 ## Goal
@@ -179,3 +179,8 @@ async def on_reject(action: cl.Action):
 - [S11:rejection] Tests must assert the queried value, not discard the Query result — applicable here because the TDD tests for `get_chat_history`/`list_pending_filer_proposals` need to assert returned content, not just that the call happened
 - [Pytest-discipline] Only one `pytest` invocation at a time; `ps`/`pkill` stragglers before re-running — applicable here because the TDD plan runs pytest multiple times and stuck subprocesses will mask real failures
 - [Exploratory-test-naming] Scratch/debug tests must use `test_explore_*` (etc.) prefixes; >3 such files trips a wind-down — applicable here because Chainlit's hard-to-unit-test lifecycle may tempt throwaway probes around `temporal_client.py`
+
+## Prior failures
+### Attempt 1
+## Prior failures
+
