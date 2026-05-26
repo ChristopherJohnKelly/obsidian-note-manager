@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 from temporalio.client import Client
 
 from apps.copilot_ui.temporal_client import CopilotTemporalClient
-from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT
+from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT, QRY_GET_HISTORY
+from packages.shared.models import ChatMessage
 
 
 pytestmark = pytest.mark.asyncio
@@ -80,3 +81,40 @@ async def test_send_user_message_signals_receive_message_with_user_role():
     call_args = mock_handle.signal.call_args
     assert call_args.args[0] == "SIG_RECEIVE_MESSAGE"
     assert call_args.args[1] == {"role": "user", "content": "hello"}
+
+
+async def test_get_chat_history_returns_list_of_chat_messages():
+    """CopilotTemporalClient.get_chat_history queries QRY_GET_HISTORY and
+    deserializes dicts into list[ChatMessage].
+    """
+    # Setup
+    mock_client = MagicMock(spec=Client)
+    mock_handle = MagicMock()
+    mock_handle.query = AsyncMock(return_value=[
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello back"}
+    ])
+    mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
+
+    client = CopilotTemporalClient(mock_client)
+
+    # Execute
+    result = await client.get_chat_history("copilot-session-abc")
+
+    # Assert get_workflow_handle was called with the session id
+    assert mock_client.get_workflow_handle.call_args.args == ("copilot-session-abc",)
+
+    # Assert query was called once
+    assert mock_handle.query.await_count == 1
+
+    # Assert query was called with the correct query name
+    call_args = mock_handle.query.call_args
+    assert call_args.args[0] == QRY_GET_HISTORY
+
+    # Assert the result is a list of ChatMessage objects
+    assert len(result) == 2
+    assert all(isinstance(m, ChatMessage) for m in result)
+
+    # Assert the messages have the correct values
+    assert result[0].role == "user" and result[0].content == "hi"
+    assert result[1].role == "assistant" and result[1].content == "hello back"
