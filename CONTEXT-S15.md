@@ -1,4 +1,26 @@
 ---
+step_id: S15
+step_slug: ci-cd-pipeline
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S15-ci-cd-pipeline.md
+attempts: 0
+bubble_hash: 29b4a56a413f61bec45351c30a42f4b8d5617d27d7810bd46df26b8e6254ca80
+---
+## Goal
+See the bubble body below (`OBSE-P5-S15-ci-cd-pipeline.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S15
@@ -142,3 +164,11 @@ jobs:
                        apps/vault_worker/
           docker push ghcr.io/christopherjohnkelly/obsidian-vault-worker --all-tags
 ```
+
+## Steering from prior steps
+- [S03] Coverage threshold of 90% requires the full test suite to run, not just smoke tests, because packages/shared coverage comes from the broader suite — applicable here because ci.yml must invoke `pytest --cov` across both apps/ and packages/ to actually hit 90%, not a narrow subset
+- [S03] `apps/copilot_ui/app.py` (Chainlit lifecycle entrypoint) must be in the coverage omit list or it inflates the miss count below 90% — applicable here because AC explicitly requires the omit entry in pyproject.toml before raising `--cov-fail-under=90`
+- [S04] The Python package dir is `apps/vault_worker/` (underscore) while the hyphenated form is for Docker context only — applicable here because the path-filter globs and Docker build contexts in build-push.yml must use the correct directory form for each purpose
+- [S05] Running only a subset of tests gives misleading coverage (e.g. 27%) because packages/shared isn't exercised — applicable here because ci.yml must run the entire suite for the `--cov-fail-under=90` gate to be meaningful
+- [S05] Duplicate `apps/vault-worker` (hyphen, symlinked) vs `apps/vault_worker` (underscore) directories require coverage-omit handling for the symlink — applicable here because the coverage config ci.yml depends on must already account for this, and path filters in build-push.yml must match whichever form actually exists
+- [S06] `GeminiProvider` carries `# pragma: no cover` to keep total coverage above 90% — applicable here because the 90% threshold the CI enforces depends on these existing pragma/omit conventions being preserved
