@@ -33,6 +33,10 @@ class CopilotTemporalClient:
         raw = await handle.query(QRY_GET_HISTORY)
         return [ChatMessage(**d) for d in raw]
 
+    async def send_filer_decision(self, workflow_id: str, approved: bool) -> None:
+        handle = self.client.get_workflow_handle(workflow_id)
+        await handle.signal("approve" if approved else "reject")
+
     async def list_pending_filer_proposals(self) -> list[tuple[str, FilingProposal]]:
         out: list[tuple[str, FilingProposal]] = []
         q = "WorkflowType = 'FilerIngestionWorkflow' AND ExecutionStatus = 'Running'"
