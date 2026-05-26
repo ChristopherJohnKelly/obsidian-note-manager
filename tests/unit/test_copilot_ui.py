@@ -224,3 +224,81 @@ def test_requirements_has_no_vault_or_llm_dependencies():
     assert "chainlit" in text, "chainlit not found in requirements.txt"
     assert "temporalio" in text, "temporalio not found in requirements.txt"
     assert "pydantic" in text, "pydantic not found in requirements.txt"
+
+
+def test_app_py_imports_are_clean_temporal_client_only():
+    """app.py imports only from temporal_client, no gitpython/google.generativeai/frontmatter."""
+    from pathlib import Path
+
+    text = Path("apps/copilot_ui/app.py").read_text()
+
+    # Forbidden substrings (case-insensitive check)
+    text_lower = text.lower()
+    for forbidden in ["import gitpython", "import google.generativeai", "import frontmatter"]:
+        assert forbidden not in text_lower, f"Forbidden import found: {forbidden}"
+
+    # Required imports
+    assert "import chainlit" in text, "Missing: import chainlit"
+
+    # Check for temporal_client import (either absolute or relative)
+    assert ("from apps.copilot_ui.temporal_client import" in text or
+            "from .temporal_client import" in text), \
+        "Missing: from apps.copilot_ui.temporal_client import or from .temporal_client import"
+
+    assert "CopilotTemporalClient(" in text, "Missing: CopilotTemporalClient("
+
+
+def test_app_py_implements_lifecycle_and_polling():
+    """app.py has lifecycle decorators, polling loop, reconnect logic, real Client.connect."""
+    from pathlib import Path
+    import re
+
+    text = Path("apps/copilot_ui/app.py").read_text()
+
+    # Required decorators
+    assert "@cl.on_chat_start" in text, "Missing: @cl.on_chat_start"
+    assert "@cl.on_message" in text, "Missing: @cl.on_message"
+    assert "@cl.action_callback" in text, "Missing: @cl.action_callback"
+
+    # Required function calls
+    required_calls = [
+        "start_copilot_session(",
+        "send_user_message(",
+        "get_chat_history(",
+        "list_pending_filer_proposals(",
+        "send_filer_decision("
+    ]
+    for func in required_calls:
+        assert func in text, f"Missing call to {func}"
+
+    # Required: polling loop with while and get_chat_history (regex check)
+    polling_pattern = r"while\s+.*:\s*\n(?:.|\n)*?get_chat_history"
+    assert re.search(polling_pattern, text, re.DOTALL), \
+        "Missing polling loop pattern (while ... get_chat_history)"
+
+    # Required: reconnect logic - check for workflow_id session lookup
+    assert ('cl.user_session.get("workflow_id"' in text or
+            "cl.user_session.get('workflow_id'" in text), \
+        "Missing: cl.user_session.get(\"workflow_id\") for reconnect check"
+
+    # Required: describe/status check for existing workflow (common patterns)
+    assert (".describe(" in text or
+            "describe_workflow(" in text or
+            "get_workflow_status" in text or
+            "handle.describe" in text), \
+        "Missing: describe() or status check for existing workflow handle"
+
+    # Required: real Client.connect
+    assert "Client.connect(" in text, "Missing: Client.connect("
+
+
+def test_dockerfile_exists():
+    """Dockerfile exists at apps/copilot_ui/Dockerfile with FROM line."""
+    from pathlib import Path
+
+    dockerfile_path = Path("apps/copilot_ui/Dockerfile")
+    assert dockerfile_path.exists(), "Dockerfile does not exist at apps/copilot_ui/Dockerfile"
+
+    text = dockerfile_path.read_text()
+    assert len(text) > 0, "Dockerfile is empty"
+    assert "FROM" in text, "Dockerfile missing FROM instruction"
