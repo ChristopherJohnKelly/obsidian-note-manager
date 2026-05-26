@@ -53,3 +53,30 @@ async def test_start_copilot_session_uses_queue_default_and_returns_id(mock_temp
 
     # The method should return the workflow id
     assert result == "copilot-session-abc"
+
+
+async def test_send_user_message_signals_receive_message_with_user_role():
+    """CopilotTemporalClient.send_user_message signals SIG_RECEIVE_MESSAGE on
+    workflow handle with user-role payload containing the message.
+    """
+    # Setup
+    mock_client = MagicMock(spec=Client)
+    mock_handle = MagicMock()
+    mock_handle.signal = AsyncMock()
+    mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
+
+    client = CopilotTemporalClient(mock_client)
+
+    # Execute
+    await client.send_user_message("copilot-session-abc", "hello")
+
+    # Assert get_workflow_handle was called with the session id
+    assert mock_client.get_workflow_handle.call_args.args == ("copilot-session-abc",)
+
+    # Assert signal was called once
+    assert mock_handle.signal.await_count == 1
+
+    # Assert signal was called with correct signal name and payload
+    call_args = mock_handle.signal.call_args
+    assert call_args.args[0] == "SIG_RECEIVE_MESSAGE"
+    assert call_args.args[1] == {"role": "user", "content": "hello"}
