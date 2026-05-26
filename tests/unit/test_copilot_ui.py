@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from temporalio.client import Client
 
 from apps.copilot_ui.temporal_client import CopilotTemporalClient
-from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT, QRY_GET_HISTORY
+from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT, QRY_GET_HISTORY, SIG_RECEIVE_MESSAGE
 from packages.shared.models import ChatMessage, FilingProposal
 
 
@@ -79,7 +79,7 @@ async def test_send_user_message_signals_receive_message_with_user_role():
 
     # Assert signal was called with correct signal name and payload
     call_args = mock_handle.signal.call_args
-    assert call_args.args[0] == "SIG_RECEIVE_MESSAGE"
+    assert call_args.args[0] == SIG_RECEIVE_MESSAGE
     assert call_args.args[1] == {"role": "user", "content": "hello"}
 
 
