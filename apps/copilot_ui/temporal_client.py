@@ -36,13 +36,13 @@ class CopilotTemporalClient:
     async def list_pending_filer_proposals(self) -> list[tuple[str, FilingProposal]]:
         out: list[tuple[str, FilingProposal]] = []
         q = "WorkflowType = 'FilerIngestionWorkflow' AND ExecutionStatus = 'Running'"
-        async for ex in self.client.list_workflows(q):
-            h = self.client.get_workflow_handle(ex.id)
-            status = await h.query(QRY_GET_STATUS)
+        async for execution in self.client.list_workflows(q):
+            handle = self.client.get_workflow_handle(execution.id)
+            status = await handle.query(QRY_GET_STATUS)
             if status != "awaiting_approval":
                 continue
-            raw = await h.query(QRY_GET_DRAFT_PROPOSAL)
+            raw = await handle.query(QRY_GET_DRAFT_PROPOSAL)
             if raw is None:
                 continue
-            out.append((ex.id, FilingProposal(**raw)))
+            out.append((execution.id, FilingProposal(**raw)))
         return out
