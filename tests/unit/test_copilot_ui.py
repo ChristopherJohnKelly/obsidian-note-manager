@@ -206,3 +206,21 @@ async def test_send_filer_decision_signals_approve_or_reject(approved, expected_
     assert mock_handle.signal.await_count == 1
     call_args = mock_handle.signal.call_args
     assert call_args.args[0] == expected_signal
+
+
+def test_requirements_has_no_vault_or_llm_dependencies():
+    """apps/copilot_ui/requirements.txt should declare chainlit+temporalio+pydantic
+    and must not include gitpython/google-generativeai/frontmatter.
+    """
+    from pathlib import Path
+
+    text = Path("apps/copilot_ui/requirements.txt").read_text().lower()
+
+    # Assert forbidden packages are not present
+    for forbidden in ["gitpython", "google-generativeai", "frontmatter"]:
+        assert forbidden not in text, f"Found forbidden package: {forbidden}"
+
+    # Assert required packages are present
+    assert "chainlit" in text, "chainlit not found in requirements.txt"
+    assert "temporalio" in text, "temporalio not found in requirements.txt"
+    assert "pydantic" in text, "pydantic not found in requirements.txt"
