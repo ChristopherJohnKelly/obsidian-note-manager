@@ -6,7 +6,7 @@ from temporalio.client import Client
 
 from apps.copilot_ui.temporal_client import CopilotTemporalClient
 from packages.shared.workflow_names import COPILOT_SESSION_WORKFLOW, QUEUE_DEFAULT, QRY_GET_HISTORY
-from packages.shared.models import ChatMessage
+from packages.shared.models import ChatMessage, FilingProposal
 
 
 pytestmark = pytest.mark.asyncio
@@ -118,3 +118,63 @@ async def test_get_chat_history_returns_list_of_chat_messages():
     # Assert the messages have the correct values
     assert result[0].role == "user" and result[0].content == "hi"
     assert result[1].role == "assistant" and result[1].content == "hello back"
+
+
+async def test_list_pending_filer_proposals_returns_id_and_filing_proposal_tuples():
+    """CopilotTemporalClient.list_pending_filer_proposals filters by status
+    awaiting_approval and returns list of (workflow_id, FilingProposal) tuples.
+    """
+    from types import SimpleNamespace
+
+    async def _async_iter(items):
+        """Helper to create an async iterator from a list."""
+        for item in items:
+            yield item
+
+    # Setup
+    mock_client = MagicMock(spec=Client)
+
+    # Create fake workflow execution objects
+    wf1 = SimpleNamespace(id="filer-1")
+    wf2 = SimpleNamespace(id="filer-2")
+
+    # Mock list_workflows to return async iterator
+    mock_client.list_workflows = MagicMock(return_value=_async_iter([wf1, wf2]))
+
+    # Create mock handles
+    mock_handle_1 = MagicMock()
+    mock_handle_1.query = AsyncMock(side_effect=[
+        "awaiting_approval",
+        {
+            "source_path": "/inbox/a.md",
+            "proposed_path": "/areas/a.md",
+            "proposed_frontmatter": {},
+            "reasoning": "r1"
+        }
+    ])
+
+    mock_handle_2 = MagicMock()
+    mock_handle_2.query = AsyncMock(side_effect=[
+        "drafting",
+        None
+    ])
+
+    mock_client.get_workflow_handle = MagicMock(side_effect=[mock_handle_1, mock_handle_2])
+
+    client = CopilotTemporalClient(mock_client)
+
+    # Execute
+    result = await client.list_pending_filer_proposals()
+
+    # Assert list_workflows query string
+    call_args = mock_client.list_workflows.call_args
+    query_string = call_args.args[0]
+    assert "WorkflowType = 'FilerIngestionWorkflow'" in query_string
+    assert "ExecutionStatus = 'Running'" in query_string
+
+    # Assert result
+    assert len(result) == 1
+    assert result[0][0] == "filer-1"
+    assert isinstance(result[0][1], FilingProposal)
+    assert str(result[0][1].source_path) == "/inbox/a.md"
+    assert result[0][1].reasoning == "r1"
