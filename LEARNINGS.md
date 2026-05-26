@@ -200,3 +200,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S14 rejection — 2026-05-22T19:53:02Z
 - REJECTION: AC1 reconnect/restore not implemented (cl.user_session ≠ browser storage; no running-check, no history restore); AC4 lacks polling loop (single get_chat_history call after signal)
+
+## S15 rejection — 2026-05-26T22:03:48Z
+- REJECTION: Scope/TDD violation — bubble forbids modifying `tests/` and explicitly states no unit tests, but commit adds 3 tautological string-match test files under `tests/s15/` that don't verify CI behaviour.
