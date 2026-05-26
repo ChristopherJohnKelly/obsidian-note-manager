@@ -7,6 +7,7 @@ from packages.shared.workflow_names import (
     QRY_GET_DRAFT_PROPOSAL,
     QRY_GET_HISTORY,
     QRY_GET_STATUS,
+    SIG_RECEIVE_MESSAGE,
 )
 
 
@@ -26,7 +27,7 @@ class CopilotTemporalClient:
 
     async def send_user_message(self, workflow_id: str, message: str) -> None:
         handle = self.client.get_workflow_handle(workflow_id)
-        await handle.signal("SIG_RECEIVE_MESSAGE", {"role": "user", "content": message})
+        await handle.signal(SIG_RECEIVE_MESSAGE, {"role": "user", "content": message})
 
     async def get_chat_history(self, workflow_id: str) -> list[ChatMessage]:
         handle = self.client.get_workflow_handle(workflow_id)
