@@ -68,17 +68,17 @@ async def on_message(message: cl.Message):
         await asyncio.sleep(0.5)
 
 
+async def _handle_decision(action: cl.Action, *, approved: bool) -> None:
+    client = await _get_client()
+    await client.send_filer_decision(action.payload["workflow_id"], approved=approved)
+    await cl.Message(content="Approved!" if approved else "Rejected.").send()
+
+
 @cl.action_callback("approve")
 async def on_approve(action: cl.Action):
-    client = await _get_client()
-    workflow_id = action.payload["workflow_id"]
-    await client.send_filer_decision(workflow_id, approved=True)
-    await cl.Message(content="Approved!").send()
+    await _handle_decision(action, approved=True)
 
 
 @cl.action_callback("reject")
 async def on_reject(action: cl.Action):
-    client = await _get_client()
-    workflow_id = action.payload["workflow_id"]
-    await client.send_filer_decision(workflow_id, approved=False)
-    await cl.Message(content="Rejected.").send()
+    await _handle_decision(action, approved=False)
