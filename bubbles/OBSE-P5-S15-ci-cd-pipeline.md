@@ -54,29 +54,30 @@ tags: [ type/bubble ]
 - [ ] Image builds are conditional: `vault-worker` only rebuilds if `apps/vault_worker/**` or `packages/shared/**` changed; same pattern for the other two
 - [ ] GHCR login uses `GITHUB_TOKEN` (no external secrets needed for package publish)
 - [ ] A README note documents: how to pull and run each image; what environment variables each container requires
+- [ ] Structural tests under `tests/ci/` pin every criterion above by parsing the workflow YAML (`yaml.safe_load`) — not by string-matching raw file text. They MUST assert, at minimum: the ci job's test step invokes pytest with `--cov` and `--cov-fail-under=90`; Python version is `3.12`; the install step uses editable installs and does not install pytest directly; `[tool.coverage.run]` `omit` in `pyproject.toml` contains `apps/copilot_ui/app.py`; build-push defines builds for all three images, each tagged `latest` and `${{ github.sha }}`; each build is gated on a paths filter covering its `apps/{name}/**` (plus `packages/shared/**` where specified); GHCR login uses `GITHUB_TOKEN`; `workflow_dispatch` is among build-push triggers
 
 ---
 
 ## 5. Scope Boundary
 
-**May modify:** `.github/workflows/ci.yml`, `.github/workflows/build-push.yml`, `README.md`
-**Must not modify:** Any application code, Dockerfiles, `packages/`, `tests/`
+**May modify:** `.github/workflows/ci.yml`, `.github/workflows/build-push.yml`, `README.md`, `pyproject.toml` (coverage `omit` list only), `tests/ci/`, `scripts/run_s15_tests.sh`
+**Must not modify:** Any application code, Dockerfiles, `packages/`, `tests/unit/`, `tests/e2e/`, `tests/fixtures/`
 
 ---
 
 ## 6. TDD Constraints
 
-This bubble has no unit tests (CI config cannot be unit-tested meaningfully). The acceptance criteria are validated by opening a test PR and observing the Actions run. Document the manual validation steps in the PR description.
+The workflows cannot be executed locally, but their structure can and must be tested. Write structural tests in `tests/ci/` that load the YAML with `yaml.safe_load` and assert the acceptance criteria above — no live Actions run is needed to go green. String-matching on raw file text is not acceptable: a prior attempt was rejected for tautological string-match tests that asserted nothing about the parsed structure. The real-Actions validation (open a test PR, observe the run, verify images appear in GHCR) is a post-merge manual step performed by the operator — document it in `README.md`; do not attempt it in this step.
 
 ---
 
 ## 7. Step-by-Step Plan
 
-1. Write `ci.yml`: checkout → setup Python 3.12 → install all packages editable → `pytest --cov --cov-fail-under=90`. Commit on a branch and open a PR to validate.
+1. Write structural tests in `tests/ci/` asserting the ci.yml criteria; watch them fail. Write `ci.yml`: checkout → setup Python 3.12 → install all packages editable → `pytest --cov --cov-fail-under=90`. Tests go green.
 2. Write `build-push.yml`: trigger on `push` to `main`; use `dorny/paths-filter` action for path-based conditional builds; login to GHCR with `GITHUB_TOKEN`; build + push each image with two tags.
 3. Add the `on: workflow_dispatch` trigger to `build-push.yml` so it can be triggered manually for initial validation.
 4. Update `README.md` with image pull instructions and required environment variables per container.
-5. Merge a test commit to `main` (or trigger manually) and verify all three images appear in GHCR.
+5. Add a README section documenting the post-merge manual validation for the operator: open a test PR to watch CI run, trigger build-push via `workflow_dispatch`, verify all three images appear in GHCR.
 
 ---
 

@@ -47,7 +47,7 @@ tags: [ type/bubble ]
 
 ## 4. Acceptance Criteria
 
-- [ ] `docker compose -f docker-compose.prod.yml config` validates without error (no missing required fields)
+- [ ] `docker-compose.prod.yml` is valid YAML with the structure pinned by the tests below; `docker compose -f docker-compose.prod.yml config` passing on the Ubuntu VM is the post-merge manual check
 - [ ] `postgres` service uses a named volume for data persistence; data survives `docker compose restart`
 - [ ] `temporal-server` is configured to use PostgreSQL via `TEMPORAL_DB_PLUGIN=postgres12` (or equivalent env for the chosen Temporal image)
 - [ ] `vault-worker` has `VAULT_PATH`, `REPO_URL`, `GITHUB_PAT`, `GEMINI_API_KEY`, `TEMPORAL_HOST` as required env vars
@@ -55,31 +55,30 @@ tags: [ type/bubble ]
 - [ ] `github-runner` has `GITHUB_PAT`, `REPO_URL`, `TEMPORAL_HOST`, `RUNNER_NAME` — no vault or LLM secrets
 - [ ] `temporal-ui` is accessible on host port 8080; `copilot-ui` on host port 8000; all other ports are internal only
 - [ ] `.env.example` lists every variable used across all services with a one-line description
+- [ ] Structural tests under `tests/ci/` pin the criteria above by parsing `docker-compose.prod.yml` (`yaml.safe_load`) and reading `.env.example`. They MUST assert, at minimum: all six services exist (`postgres`, `temporal-server`, `temporal-ui`, `vault-worker`, `copilot-ui`, `github-runner`); the three custom services use `ghcr.io/christopherjohnkelly/...` images and no service uses `build:`; `postgres` mounts a named volume; `temporal-server` env selects the postgres plugin for both primary and visibility stores and no Elasticsearch service exists; `vault-worker` env includes exactly the five required variables; `copilot-ui` and `github-runner` carry no vault or LLM secrets; only ports 8080 (`temporal-ui`) and 8000 (`copilot-ui`) are published to the host; every `${VAR}` referenced in the compose file has an entry in `.env.example`; `.gitignore` covers `.env`
 
 ---
 
 ## 5. Scope Boundary
 
-**May modify:** `docker-compose.prod.yml`, `.env.example`, `docs/deployment.md`, `.gitignore` (to exclude `.env`)
-**Must not modify:** Any application code, Dockerfiles, GitHub Actions workflows, `packages/`, `tests/`
+**May modify:** `docker-compose.prod.yml`, `.env.example`, `docs/deployment.md`, `.gitignore` (to exclude `.env`), `tests/ci/`, `scripts/run_s16_tests.sh`
+**Must not modify:** Any application code, Dockerfiles, GitHub Actions workflows, `packages/`, `tests/unit/`, `tests/e2e/`, `tests/fixtures/`
 
 ---
 
 ## 6. TDD Constraints
 
-This bubble has no unit tests. Validation is via `docker compose config` (syntax check) and a manual deployment test on the Ubuntu VM. Document the manual validation steps in `docs/deployment.md`.
+The stack cannot be deployed in this step, but the compose file's structure can and must be tested. Write structural tests in `tests/ci/` that load `docker-compose.prod.yml` with `yaml.safe_load` and assert the acceptance criteria above. Do not shell out to `docker compose` in tests — it is not available in the test environment. `docker compose config` and the full deployment are post-merge manual validation on the Ubuntu VM; document that procedure in `docs/deployment.md`.
 
 ---
 
 ## 7. Step-by-Step Plan
 
-1. Write `docker-compose.prod.yml` with all six services. Run `docker compose -f docker-compose.prod.yml config` — fix any syntax errors.
-2. Write `.env.example` listing all variables.
-3. Test locally with real `.env` (redacted for commit): `docker compose pull` then `docker compose up -d`. Confirm all containers start and pass health checks.
-4. Verify Temporal UI is reachable at `http://localhost:8080`.
-5. Verify Chainlit is reachable at `http://localhost:8000`.
-6. Write `docs/deployment.md`.
-7. Ensure `.env` is in `.gitignore`. Commit `.env.example` only.
+1. Write structural tests in `tests/ci/` asserting the compose criteria; watch them fail.
+2. Write `docker-compose.prod.yml` with all six services; tests go green.
+3. Write `.env.example` listing all variables (tests assert coverage of every `${VAR}`).
+4. Write `docs/deployment.md`: pull images, fill `.env`, start stack, verify health — including the post-merge manual validation (`docker compose config`, `docker compose up -d`, Temporal UI on :8080, Chainlit on :8000).
+5. Ensure `.env` is in `.gitignore`. Commit `.env.example` only.
 
 ---
 
