@@ -203,3 +203,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S15 rejection — 2026-05-26T22:03:48Z
 - REJECTION: Scope/TDD violation — bubble forbids modifying `tests/` and explicitly states no unit tests, but commit adds 3 tautological string-match test files under `tests/s15/` that don't verify CI behaviour.
+
+## S15 rejection — 2026-08-09T22:22:44Z
+- REJECTION: ci.yml install step is broken — `pip install -e apps/vault_worker` (ci.yml:24) errors because that dir has no pyproject.toml/setup.py, aborting the job before pytest; and `packages/shared[dev]` (ci.yml:23) installs no dev deps since packages/shared/pyproject.toml defines no `dev` extra, so pytest is never installed. Acceptance criteria 1 and 2 fail, and test_ci_workflow_editable_installs (tests/ci/test_ci_workflow.py:73) is tautological — it only substring-matches "pip install -e" and passes against a non-functional install block.
