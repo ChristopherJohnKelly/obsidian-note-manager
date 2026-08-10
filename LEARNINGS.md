@@ -218,3 +218,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S15 rejection — 2026-08-10T03:03:38Z
 - REJECTION: build-push.yml paths-filter outputs are never consumed — no `if:` on any job or step (build-push.yml:36-44, 72-80, 107-115), so all three images rebuild/push unconditionally, violating the conditional-build criterion; tests/ci/test_build_push_workflow.py:104 asserts only filter presence, not gating, pinning the defect green
+
+## S15 rejection — 2026-08-10T06:02:30Z
+- REJECTION: build-push.yml never pushes — all three jobs run `docker build` with no `docker push`/`push: true`/`--all-tags`, so no image reaches GHCR (build-push.yml:35-42,69-76,102-108), contradicting the objective/target state/required output; no test in tests/ci/ asserts a push, pinning the defect green
