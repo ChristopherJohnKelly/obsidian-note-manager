@@ -24,7 +24,7 @@ feat/OBSE-P5-temporal-soa-migration
 | S15 | CI/CD Pipeline | step/OBSE-P5-S15-ci-cd-pipeline | S13,S14,S17 | done | #39 | 3 |  |
 | S16 | Production Docker Compose   | step/OBSE-P5-S16-production-docker-compose     | S09,S13,S14,S15,S17,S18 | pending | — | 0       |            |
 | S17 | Monorepo Path Hygiene | step/OBSE-P5-S17-monorepo-path-hygiene | — | done | #30 | 1 |  |
-| S18 | Integration Hardening | step/OBSE-P5-S18-integration-hardening | S10,S11,S12,S15 | pending | — | 0 |  |
+| S18 | Integration Hardening | step/OBSE-P5-S18-integration-hardening | S10,S11,S12,S15 | queued | — | 0 |  |
 
 ## Status Transitions
 
