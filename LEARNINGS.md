@@ -241,3 +241,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T10:33:50Z
 - REJECTION: AC8 — README github-runner env table (README.md:261) documents only TEMPORAL_HOST, omitting the six vars trigger.py:56-66 requires from the container (VAULT_PATH, CONTEXT_CODE, REPO_OWNER, REPO_NAME, GITHUB_TOKEN, PR_BRANCH); test_readme_docs.py:27-29 hardcodes the incomplete list so AC9 pins the defect green. Also copilot-ui run cmd maps -p 8080:8080 while Chainlit listens on 8000, and scripts/run_s15_tests.sh runs only 1 of the 3 tests/ci files.
+
+## S15 rejection — 2026-08-10T10:50:36Z
+- REJECTION: AC8 — README github-runner run example (README.md:257-267) omits the required `--workflow` arg (trigger.py:48, exit 2), so the documented run command is non-functional; test_readme_docs.py:125-131 asserts only that a docker run line exists, pinning it green
