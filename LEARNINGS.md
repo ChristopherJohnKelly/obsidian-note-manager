@@ -272,3 +272,6 @@ PRREVIEW:PASS
 
 ## S18 rejection — 2026-08-10T19:05:39Z
 - REJECTION: 
+
+## S18 rejection — 2026-08-10T19:38:24Z
+- REJECTION: Code quality (critical): parse_fix (apps/vault_worker/core/fix_parser.py:53) catches only yaml.YAMLError, so ordinary LLM frontmatter such as `created: 2025-02-30` raises ValueError (and deep nesting raises RecursionError) out of the unguarded call at night_watchman.py:93 inside @workflow.run — a workflow-task failure retried indefinitely, wedging NightWatchmanWorkflow; violates the module's own documented totality contract and is missed by test_never_raises_on_garbage

@@ -222,3 +222,41 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T19:38:28Z
+
+## Rejection Reason
+Code quality (critical): parse_fix (apps/vault_worker/core/fix_parser.py:53) catches only yaml.YAMLError, so ordinary LLM frontmatter such as `created: 2025-02-30` raises ValueError (and deep nesting raises RecursionError) out of the unguarded call at night_watchman.py:93 inside @workflow.run — a workflow-task failure retried indefinitely, wedging NightWatchmanWorkflow; violates the module's own documented totality contract and is missed by test_never_raises_on_garbage
+
+## Failed Check
+pr-review-toolkit
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#40 — step branch `pr/S18` @ b09a02d
+
+## Files changed on step branch vs feature
+- apps/copilot_ui/app.py
+- apps/github_runner/trigger.py
+- apps/vault_worker/__main__.py
+- apps/vault_worker/core/fix_parser.py
+- apps/vault_worker/worker.py
+- apps/vault_worker/workflows/night_watchman.py
+- scripts/run_s18_tests.sh
+- tests/e2e/test_night_watchman_write_back.py
+- tests/unit/test_client_wiring.py
+- tests/unit/test_fix_parser.py
+- tests/unit/test_worker.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
