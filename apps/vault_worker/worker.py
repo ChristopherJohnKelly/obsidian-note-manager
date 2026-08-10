@@ -40,9 +40,13 @@ from apps.vault_worker.activities.git_ops import (
 from apps.vault_worker.activities.llm import (
     generate_proposal,
     generate_fix,
+    generate_chat_response,
 )
 from apps.vault_worker.activities.github_ops import create_github_pr
+from apps.vault_worker.activities.vault_manager_client import ensure_vault_synced
 
+from apps.vault_worker.workflows.copilot_session import CopilotSessionWorkflow
+from apps.vault_worker.workflows.filer_ingestion import FilerIngestionWorkflow
 from apps.vault_worker.workflows.night_watchman import NightWatchmanWorkflow
 from apps.vault_worker.workflows.read_vault import ReadVaultWorkflow
 from apps.vault_worker.workflows.vault_manager import (
@@ -51,40 +55,57 @@ from apps.vault_worker.workflows.vault_manager import (
 )
 from apps.vault_worker.workflows.write_vault import WriteVaultWorkflow
 
+DEFAULT_WORKFLOWS = (
+    VaultManagerWorkflow,
+    NightWatchmanWorkflow,
+    ReadVaultWorkflow,
+    FilerIngestionWorkflow,
+    CopilotSessionWorkflow,
+)
+MUTATION_WORKFLOWS = (WriteVaultWorkflow,)
+
+DEFAULT_ACTIVITIES = (
+    check_vault_dir_state,
+    read_note,
+    list_notes_in,
+    read_raw,
+    scan_vault,
+    validate_note,
+    get_skeleton,
+    get_code_registry,
+    git_clone,
+    git_pull,
+    git_commit,
+    git_push,
+    generate_proposal,
+    generate_fix,
+    generate_chat_response,
+    create_github_pr,
+    ensure_vault_synced,
+)
+MUTATION_ACTIVITIES = (save_note, delete_note, git_pull, git_commit, git_push)
+
+MUTATION_MAX_CONCURRENT_WORKFLOW_TASKS = 1
+MUTATION_MAX_CONCURRENT_ACTIVITIES = 1
+
 
 def create_workers(client):
     """Return a list of Workers to run in the same process."""
     default_worker = Worker(
         client,
         task_queue=QUEUE_DEFAULT,
-        workflows=[VaultManagerWorkflow, NightWatchmanWorkflow, ReadVaultWorkflow],
-        activities=[
-            check_vault_dir_state,
-            read_note,
-            list_notes_in,
-            read_raw,
-            scan_vault,
-            validate_note,
-            get_skeleton,
-            get_code_registry,
-            git_clone,
-            git_pull,
-            git_commit,
-            git_push,
-            generate_proposal,
-            generate_fix,
-            create_github_pr,
-        ],
+        workflows=list(DEFAULT_WORKFLOWS),
+        activities=list(DEFAULT_ACTIVITIES),
         activity_executor=ThreadPoolExecutor(max_workers=2),
     )
 
     mutation_worker = Worker(
         client,
         task_queue=QUEUE_MUTATION,
-        workflows=[WriteVaultWorkflow],
-        activities=[save_note, delete_note, git_pull, git_commit, git_push],
-        max_concurrent_workflow_tasks=1,
-        max_concurrent_activities=1,
+        workflows=list(MUTATION_WORKFLOWS),
+        activities=list(MUTATION_ACTIVITIES),
+        max_concurrent_workflow_tasks=MUTATION_MAX_CONCURRENT_WORKFLOW_TASKS,
+        max_concurrent_activities=MUTATION_MAX_CONCURRENT_ACTIVITIES,
         activity_executor=ThreadPoolExecutor(max_workers=2),
     )
 

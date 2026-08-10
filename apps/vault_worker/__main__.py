@@ -9,7 +9,11 @@ import asyncio
 import os
 
 from temporalio.client import Client
+from temporalio.contrib.pydantic import pydantic_data_converter
 
+from apps.vault_worker.activities.vault_manager_client import configure_client
+from apps.vault_worker.activities.llm import configure_provider
+from apps.vault_worker.activities.llm_provider import GeminiProvider
 from apps.vault_worker.worker import (
     create_workers,
     start_vault_manager,
@@ -19,8 +23,11 @@ from apps.vault_worker.worker import (
 
 async def main() -> None:
     client = await Client.connect(
-        os.environ.get("TEMPORAL_HOST", "temporal-server:7233")
+        os.environ.get("TEMPORAL_HOST", "temporal-server:7233"),
+        data_converter=pydantic_data_converter,
     )
+    configure_client(client)
+    configure_provider(GeminiProvider())
     await start_vault_manager(client, vault_input_from_env())
     workers = create_workers(client)
     await asyncio.gather(*(worker.run() for worker in workers))

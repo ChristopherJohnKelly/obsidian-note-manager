@@ -21,7 +21,8 @@ with workflow.unsafe.imports_passed_through():
         WriteVaultInput,
         WriteOperation,
     )
-    from packages.shared.models import AuditProposal, VaultNote, Frontmatter
+    from apps.vault_worker.core.fix_parser import parse_fix
+    from packages.shared.models import VaultNote
     from packages.shared.workflow_names import QUEUE_DEFAULT, QUEUE_MUTATION
 
 
@@ -69,8 +70,8 @@ class NightWatchmanWorkflow:
         # Step 3: sort then slice (must happen before loop)
         top = sorted(results, key=lambda r: r.score, reverse=True)[:10]
 
-        # Step 4: generate fixes
-        proposals: list[AuditProposal] = []
+        # Step 4+5: generate fixes, parse output, preserve original frontmatter
+        operations = []
         for vr in top:
             self._files_scanned += 1
             note = await workflow.execute_activity(
@@ -89,28 +90,15 @@ class NightWatchmanWorkflow:
                 workflow.logger.warning("generate_fix failed for %s: %s", vr.path, e)
                 continue
             self._proposals_generated += 1
-            proposals.append(
-                AuditProposal(
-                    target_path=vr.path,
-                    proposed_content=fix_str,
-                    reasons=vr.reasons,
-                    score=vr.score,
-                )
-            )
-
-        # Step 5: build write operations (raw fix text stored verbatim as body)
-        operations = [
-            WriteOperation(
+            body = parse_fix(fix_str)
+            if body is None:
+                workflow.logger.warning("skipping unparseable fix for %s", note.path)
+                continue
+            operations.append(WriteOperation(
                 op="save",
-                path=str(p.target_path),
-                note=VaultNote(
-                    path=p.target_path,
-                    frontmatter=Frontmatter(),
-                    body=p.proposed_content,
-                ),
-            )
-            for p in proposals
-        ]
+                path=str(note.path),
+                note=VaultNote(path=note.path, frontmatter=note.frontmatter, body=body),
+            ))
 
         # Step 6: write vault via child WriteVaultWorkflow
         await workflow.execute_child_workflow(
@@ -118,7 +106,7 @@ class NightWatchmanWorkflow:
             WriteVaultInput(
                 vault_path=input.vault_path,
                 operations=operations,
-                commit_message=f"Night Watchman: fix {len(proposals)} notes",
+                commit_message=f"Night Watchman: fix {len(operations)} notes",
             ),
             task_queue=QUEUE_MUTATION,
             id=f"nw-write-{workflow.info().workflow_id}",
@@ -134,11 +122,11 @@ class NightWatchmanWorkflow:
                     token=input.github_token,
                     pr_branch=input.pr_branch,
                     title="Night Watchman audit",
-                    body=f"Automated audit fixed {len(proposals)} notes",
+                    body=f"Automated audit fixed {len(operations)} notes",
                     base_branch=input.base_branch,
                 )
             ],
             schedule_to_close_timeout=timedelta(minutes=2),
         )
 
-        return {"proposals_generated": len(proposals), "pr_url": pr_url}
+        return {"proposals_generated": self._proposals_generated, "pr_url": pr_url}
