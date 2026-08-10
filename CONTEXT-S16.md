@@ -1,4 +1,26 @@
 ---
+step_id: S16
+step_slug: production-docker-compose
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S16-production-docker-compose.md
+attempts: 0
+bubble_hash: 3e2a46350935481e0da2bbf22e03fe0c98f65a41b5d7a49fcc273c2c6589017b
+---
+## Goal
+See the bubble body below (`OBSE-P5-S16-production-docker-compose.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S16
@@ -196,3 +218,15 @@ RUNNER_NAME=obsidian-runner     # Display name in GitHub Actions
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+## Steering from prior steps
+- [S05:gitignore] .gitignore is append-only; never edit existing entries — always add new lines at the end — applicable here because the bubble requires `.env` be added to `.gitignore` and prior sessions have twice corrupted the file by editing in place
+- [S15] Custom GHCR images are published under the `obsidian-` prefix (`ghcr.io/christopherjohnkelly/obsidian-{vault-worker,copilot-ui,github-runner}`) — applicable here because the compose file must reference the exact tags produced by build-push.yml, and a prior S15 rejection pinned wrong names in a test
+- [S15] vault-worker container reads `TEMPORAL_HOST` (not `TEMPORAL_ADDRESS`); env-var docs must match what the code actually reads — applicable here because `.env.example` and the compose env blocks must list the real variable names consumed by each image
+- [S15] vault-worker requires `VAULT_PATH`, `REPO_URL`, `GITHUB_PAT`, `GEMINI_API_KEY`, `TEMPORAL_HOST` (GEMINI_API_KEY raises ValueError if missing) — applicable here because AC dictates exactly these five env vars for the vault-worker service
+- [S15] copilot-ui / Chainlit listens on port 8000, not 8080 — applicable here because the bubble maps copilot-ui to host 8000 and a prior S15 rejection mis-published the port mapping
+- [S15] github-runner's `trigger.py` enqueues to the wrong task queue (`obsidian-note-manager` vs TRD-mandated `vault-default`), so a documented run hangs forever — applicable here because docs/deployment.md's "verify health" step must actually work end-to-end against the deployed workers
+- [S15] vault-worker Dockerfile CMD points at `apps.vault_worker.worker` (no `__main__` guard → exits 0); correct entrypoint is `apps.vault_worker` — applicable here because if compose starts the same broken image, `up -d` will silently exit and mask the failure
+- [S15] Structural tests that only substring-match (e.g., "pip install -e", filter presence without gating, hardcoded image names) are tautological and pin defects green — applicable here because the required `tests/ci/` suite must parse the compose file and assert real structural properties, not just presence of strings
+- [S15] Coverage flags scoped to `.` measure legacy `src_v2/` and break the threshold; scripts must scope coverage to `apps` + `packages` — applicable here because `scripts/run_s16_tests.sh` is in scope and must not repeat that mistake
+- [S18] Production clients omit `pydantic_data_converter` and `configure_client()` is never called, so registered workflows raise at runtime — applicable here because the deployment doc's post-merge health check depends on S18 workers actually serving every workflow the compose stack starts
