@@ -22,7 +22,7 @@ tags: [ type/bubble ]
 ## 1. Context
 
 **Feature:** TRD Section 3A (Container Roster), Section 7 (Vault Synchronisation), Section 8 (Deployment Port Reference)
-**Depends On:** S09 (VaultManagerWorkflow), S13 (github-runner Dockerfile), S14 (copilot-ui Dockerfile), S15 (CI/CD — images published to GHCR)
+**Depends On:** S09 (VaultManagerWorkflow), S13 (github-runner Dockerfile), S14 (copilot-ui Dockerfile), S15 (CI/CD — images published to GHCR), S18 (integration hardening — workers actually serve every workflow)
 **Current State:** All images are published to GHCR. No production compose file exists.
 **Target State:** `docker-compose.prod.yml` and `.env.example` committed. A human operator can deploy the full stack on the Ubuntu VM with `docker compose -f docker-compose.prod.yml up -d` after filling in `.env`.
 
