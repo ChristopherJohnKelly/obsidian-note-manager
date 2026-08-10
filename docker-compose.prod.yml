@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: temporal
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal-server:
+    image: temporalio/auto-setup:latest
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      # Advanced Visibility on PostgreSQL (no Elasticsearch): required for
+      # list_workflows status filters used by copilot-ui approval cards.
+      VISIBILITY_DBNAME: temporal_visibility
+      VISIBILITY_DB_PLUGIN: postgres12
+    # gRPC stays internal — SDK clients connect via the Docker network.
+    expose:
+      - "7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    environment:
+      TEMPORAL_ADDRESS: temporal-server:7233
+    ports:
+      - "8080:8080"
+    depends_on:
+      - temporal-server
+
+  vault-worker:
+    image: ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+    environment:
+      TEMPORAL_HOST: temporal-server:7233
+      VAULT_PATH: ${VAULT_PATH}
+      REPO_URL: ${REPO_URL}
+      GITHUB_PAT: ${GITHUB_PAT}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - vault-data:${VAULT_PATH}
+    restart: unless-stopped
+    depends_on:
+      - temporal-server
+
+  copilot-ui:
+    image: ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+    environment:
+      # app.py requires TEMPORAL_ADDRESS (crashes at startup without it).
+      TEMPORAL_ADDRESS: temporal-server:7233
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      - temporal-server
+
+  github-runner:
+    image: ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
+    environment:
+      TEMPORAL_HOST: temporal-server:7233
+      GITHUB_PAT: ${GITHUB_PAT}
+      REPO_URL: ${REPO_URL}
+      RUNNER_NAME: ${RUNNER_NAME:-obsidian-runner}
+      # Forwarded into triggered workflows by trigger.py (no vault or LLM
+      # secrets here — VAULT_PATH/GEMINI_API_KEY live on vault-worker only).
+      CONTEXT_CODE: ${CONTEXT_CODE}
+      REPO_OWNER: ${REPO_OWNER}
+      REPO_NAME: ${REPO_NAME}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      PR_BRANCH: ${PR_BRANCH}
+    restart: unless-stopped
+    depends_on:
+      - temporal-server
+
+volumes:
+  postgres-data:
+  vault-data:
