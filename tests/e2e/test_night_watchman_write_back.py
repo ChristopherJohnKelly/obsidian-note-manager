@@ -13,6 +13,7 @@ Expected RED before implementation:
 from __future__ import annotations
 
 import asyncio
+import shutil
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -253,3 +254,123 @@ async def test_parse_and_preserve_frontmatter(pydantic_client, dummy_vault_path)
                 f"Empty default frontmatter written for {path!r} — "
                 "original frontmatter was not preserved"
             )
+
+
+# ---------------------------------------------------------------------------
+# AC4 skip-path characterization test
+# ---------------------------------------------------------------------------
+
+
+class MalformedLLMProvider(FakeLLMProvider):
+    """LLM provider returning markerless plain text — no %%FILE%%/%%END%% delimiters.
+
+    parse_fix sees no markers and returns None; night_watchman skips the note;
+    WriteVaultWorkflow receives an empty operations list and returns '' immediately.
+    """
+
+    def generate_fix(self, *args, **kwargs) -> str:
+        return "the LLM had a bad day"
+
+
+async def test_malformed_llm_skips_all(pydantic_client, tmp_path):
+    """AC4: markerless LLM output → parse_fix returns None → zero save_note, vault unchanged.
+
+    Characterization test: C3 already implements this skip path.
+    - fix_parser.py:26 `return body or None` makes parse_fix return strict None for
+      markerless input.
+    - night_watchman.py:94-96 `if body is None: continue` produces zero WriteOperations.
+    - write_vault.py:48-49 `if not input.operations: return ""` exits without save_note/git.
+    This test pins that contract so a future regression (e.g. returning "" instead of None)
+    cannot silently reintroduce data loss.
+    """
+    global _writeback_captured
+    _writeback_captured = []
+
+    # Copy dummy_vault into tmp_path and snapshot .md bytes pre-run.
+    fixture_vault = Path(__file__).parent.parent / "fixtures" / "dummy_vault"
+    vault_root = tmp_path / "vault"
+    shutil.copytree(str(fixture_vault), str(vault_root))
+
+    pre = {
+        p.relative_to(vault_root): p.read_bytes()
+        for p in vault_root.rglob("*.md")
+    }
+
+    malformed_llm = MalformedLLMProvider()
+    configure_provider(malformed_llm)
+    fake_github = FakeGitHubClient()
+    configure_github_client(lambda token: fake_github)
+
+    try:
+        async with Worker(
+            pydantic_client,
+            task_queue=QUEUE_DEFAULT,
+            workflows=[VaultManagerStub, ReadVaultWorkflow, NightWatchmanWorkflow],
+            activities=[
+                get_code_registry,
+                get_skeleton,
+                read_note,
+                list_notes_in,
+                read_raw,
+                scan_vault,
+                validate_note,
+                generate_fix,
+                create_github_pr,
+                ensure_vault_synced,
+            ],
+            activity_executor=ThreadPoolExecutor(max_workers=4),
+        ):
+            async with Worker(
+                pydantic_client,
+                task_queue=QUEUE_MUTATION,
+                workflows=[WriteVaultWorkflow],
+                activities=[
+                    capturing_save_note,
+                    noop_git_pull,
+                    noop_git_commit,
+                    noop_git_push,
+                ],
+                activity_executor=ThreadPoolExecutor(max_workers=2),
+            ):
+                stub_handle = await pydantic_client.start_workflow(
+                    VaultManagerStub.run,
+                    id=VAULT_MANAGER_ID,
+                    task_queue=QUEUE_DEFAULT,
+                    id_reuse_policy=WorkflowIDReusePolicy.TERMINATE_IF_RUNNING,
+                )
+                try:
+                    await pydantic_client.execute_workflow(
+                        NightWatchmanWorkflow.run,
+                        NightWatchmanInput(
+                            vault_path=str(vault_root),
+                            context_code="TEST-P01",
+                            repo_owner="test-owner",
+                            repo_name="test-repo",
+                            github_token="fake-token",
+                            pr_branch="audit/night-watchman",
+                            base_branch="main",
+                        ),
+                        id=f"nw-skip-{uuid.uuid4().hex[:4]}",
+                        task_queue=QUEUE_DEFAULT,
+                    )
+                finally:
+                    await stub_handle.cancel()
+    finally:
+        configure_provider(None)
+        configure_github_client(None)
+
+    captured = list(_writeback_captured)
+    assert captured == [], (
+        f"Expected zero save_note calls with malformed LLM output, got {len(captured)}: "
+        f"{[(p, note.body[:80]) for p, note in captured]}"
+    )
+
+    post = {
+        p.relative_to(vault_root): p.read_bytes()
+        for p in vault_root.rglob("*.md")
+    }
+    assert post == pre, (
+        "Vault .md files mutated despite malformed LLM output — "
+        "WriteVaultWorkflow should have returned '' without touching disk.\n"
+        f"Changed files: {[str(k) for k in post if post[k] != pre.get(k)]}"
+    )
