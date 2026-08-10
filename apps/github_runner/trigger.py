@@ -5,6 +5,7 @@ import sys
 from dataclasses import dataclass
 
 from temporalio.client import Client
+from temporalio.contrib.pydantic import pydantic_data_converter
 
 NIGHT_WATCHMAN_WORKFLOW = "NightWatchmanWorkflow"
 FILER_INGESTION_WORKFLOW = "FilerIngestionWorkflow"
@@ -77,7 +78,10 @@ async def amain(argv=None) -> int:
         print(f"Unknown workflow: {args.workflow}. Valid workflows: {', '.join(sorted(WORKFLOWS))}", file=sys.stderr)
         return 1
 
-    client = _client or await Client.connect(os.environ.get("TEMPORAL_HOST", "localhost:7233"))
+    client = _client or await Client.connect(
+        os.environ.get("TEMPORAL_HOST", "localhost:7233"),
+        data_converter=pydantic_data_converter,
+    )
     input_obj = _build_input(args)
 
     await client.start_workflow(

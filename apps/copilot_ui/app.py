@@ -2,6 +2,7 @@ import asyncio
 import os
 import chainlit as cl
 from temporalio.client import Client
+from temporalio.contrib.pydantic import pydantic_data_converter
 from apps.copilot_ui.temporal_client import CopilotTemporalClient
 
 
@@ -11,7 +12,10 @@ temporal = None
 async def _get_client() -> CopilotTemporalClient:
     global temporal
     if temporal is None:
-        client = await Client.connect(os.environ["TEMPORAL_ADDRESS"])
+        client = await Client.connect(
+            os.environ["TEMPORAL_ADDRESS"],
+            data_converter=pydantic_data_converter,
+        )
         temporal = CopilotTemporalClient(client)
     return temporal
 
