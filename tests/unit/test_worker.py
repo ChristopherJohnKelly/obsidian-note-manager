@@ -1,20 +1,31 @@
-"""Unit tests for vault_worker.worker.create_workers registration.
+"""Unit tests for vault_worker.worker registration constants.
 
-Validates that the two-queue Worker wiring matches the TRD §4.5 contract:
-- vault-default: VaultManagerWorkflow + read-only activities + check_vault_dir_state (S09)
-- vault-mutation-queue: WriteVaultWorkflow + write activities (S08),
-  max_concurrent_workflow_tasks=1, max_concurrent_activities=1
+AC1 (S18/C1): worker.py must expose DEFAULT_WORKFLOWS, MUTATION_WORKFLOWS,
+DEFAULT_ACTIVITIES, MUTATION_ACTIVITIES, MUTATION_MAX_CONCURRENT_WORKFLOW_TASKS,
+MUTATION_MAX_CONCURRENT_ACTIVITIES as module-level constants used by create_workers().
 
-Note: Temporal bridge forbids multiple Worker registrations on the same
-task queue within one client. All assertions share a single
-create_workers() call.
+No Worker construction — constants are inspected directly to avoid Temporal bridge
+leaks (constructing Workers in unit tests caused cross-cycle bridge conflicts; see
+S18 plan for full diagnosis).
 """
 
 from __future__ import annotations
 
+import importlib
+import inspect
+import pkgutil
+
 import pytest
 
+import apps.vault_worker.activities
+import apps.vault_worker.workflows
 from apps.vault_worker.worker import (
+    DEFAULT_ACTIVITIES,
+    DEFAULT_WORKFLOWS,
+    MUTATION_ACTIVITIES,
+    MUTATION_MAX_CONCURRENT_ACTIVITIES,
+    MUTATION_MAX_CONCURRENT_WORKFLOW_TASKS,
+    MUTATION_WORKFLOWS,
     create_workers,
     start_vault_manager,
     vault_input_from_env,
@@ -23,40 +34,71 @@ from apps.vault_worker.workflows.vault_manager import (
     VaultManagerInput,
     VaultManagerWorkflow,
 )
+from apps.vault_worker.workflows.write_vault import WriteVaultWorkflow
 from packages.shared.workflow_names import QUEUE_DEFAULT, QUEUE_MUTATION
 
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_workers_registers_default_and_mutation_queues(temporal_client):
-    """TRD §4.5: two-Worker wiring — default queue (VaultManager + reads, S09)
-    + serialised mutation queue (S08)."""
-    workers = create_workers(temporal_client)
+async def test_create_workers_registers_default_and_mutation_queues():
+    """TRD §4.5: constants enumerate all registered workflows and activities.
 
-    assert len(workers) == 2
+    No Worker construction — inspect module-level constants to avoid bridge leaks.
+    S08 steering: all worker-registration assertions in this single test function.
+    """
+    # Spot-check known workflow membership
+    assert VaultManagerWorkflow in DEFAULT_WORKFLOWS
+    assert WriteVaultWorkflow in MUTATION_WORKFLOWS
 
-    default_worker, mutation_worker = workers
-
-    assert default_worker.task_queue == QUEUE_DEFAULT
-    assert mutation_worker.task_queue == QUEUE_MUTATION
-
-    mutation_config = mutation_worker.config()
-    assert mutation_config["max_concurrent_workflow_tasks"] == 1
-    assert mutation_config["max_concurrent_activities"] == 1
-
-    # S09: default worker must host VaultManagerWorkflow and check_vault_dir_state
-    default_config = default_worker.config()
-    workflow_classes = {
-        w if isinstance(w, type) else type(w) for w in default_config["workflows"]
+    # Spot-check known activity membership
+    default_activity_names = {
+        a.__temporal_activity_definition.name for a in DEFAULT_ACTIVITIES
     }
-    assert VaultManagerWorkflow in workflow_classes
+    assert "check_vault_dir_state" in default_activity_names
 
-    activity_names = set()
-    for a in default_config["activities"]:
-        defn = getattr(a, "__temporal_activity_definition", None)
-        activity_names.add(defn.name if defn is not None else a.__name__)
-    assert "check_vault_dir_state" in activity_names
+    # Mutation-queue concurrency caps (TRD §4.5 / S08)
+    assert MUTATION_MAX_CONCURRENT_WORKFLOW_TASKS == 1
+    assert MUTATION_MAX_CONCURRENT_ACTIVITIES == 1
+
+    # --- Exhaustive enumeration: every @workflow.defn must be registered ---
+    all_registered_workflows = set(DEFAULT_WORKFLOWS) | set(MUTATION_WORKFLOWS)
+    discovered_workflow_classes = set()
+    for mod_info in pkgutil.iter_modules(apps.vault_worker.workflows.__path__):
+        if mod_info.name.startswith("__"):
+            continue
+        mod = importlib.import_module(f"apps.vault_worker.workflows.{mod_info.name}")
+        for _name, obj in inspect.getmembers(mod, inspect.isclass):
+            if getattr(obj, "__temporal_workflow_definition", None):
+                discovered_workflow_classes.add(obj)
+
+    for cls in discovered_workflow_classes:
+        assert cls in all_registered_workflows, (
+            f"@workflow.defn class {cls.__name__} is defined under "
+            f"apps.vault_worker.workflows but is missing from "
+            f"DEFAULT_WORKFLOWS and MUTATION_WORKFLOWS"
+        )
+
+    # --- Exhaustive enumeration: every @activity.defn must be registered ---
+    all_registered_activity_names = {
+        a.__temporal_activity_definition.name
+        for a in DEFAULT_ACTIVITIES + MUTATION_ACTIVITIES
+    }
+    discovered_activity_names = set()
+    for mod_info in pkgutil.iter_modules(apps.vault_worker.activities.__path__):
+        if mod_info.name.startswith("__"):
+            continue
+        mod = importlib.import_module(f"apps.vault_worker.activities.{mod_info.name}")
+        for _name, obj in inspect.getmembers(mod):
+            if callable(obj) and getattr(obj, "__temporal_activity_definition", None):
+                discovered_activity_names.add(obj.__temporal_activity_definition.name)
+
+    for act_name in discovered_activity_names:
+        assert act_name in all_registered_activity_names, (
+            f"@activity.defn '{act_name}' is defined under "
+            f"apps.vault_worker.activities but is missing from "
+            f"DEFAULT_ACTIVITIES and MUTATION_ACTIVITIES"
+        )
 
 
 async def test_vault_input_from_env_reads_required_env_vars(monkeypatch):
@@ -75,8 +117,6 @@ async def test_vault_input_from_env_reads_required_env_vars(monkeypatch):
 
 async def test_start_vault_manager_signature_exists():
     """start_vault_manager(client, vault_input) is callable and async."""
-    import inspect
-
     assert inspect.iscoroutinefunction(start_vault_manager)
     sig = inspect.signature(start_vault_manager)
     assert list(sig.parameters) == ["client", "vault_input"]
