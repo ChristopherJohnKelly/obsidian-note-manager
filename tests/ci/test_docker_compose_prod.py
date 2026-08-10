@@ -46,3 +46,59 @@ def test_temporal_server_postgres_plugin(compose):
     assert env["VISIBILITY_DB_PLUGIN"] == "postgres12", (
         f"Expected VISIBILITY_DB_PLUGIN=postgres12, got {env.get('VISIBILITY_DB_PLUGIN')!r}"
     )
+
+
+# --- C2: per-service env-var correctness ---
+
+def env_of(svc, compose=None):
+    """Return the environment for a service as a dict, handling both list and dict forms."""
+    if compose is None:
+        with open("docker-compose.prod.yml") as f:
+            import yaml
+            compose = yaml.safe_load(f)
+    raw = compose["services"][svc].get("environment", {})
+    if isinstance(raw, list):
+        return dict(item.split("=", 1) for item in raw)
+    if raw is None:
+        return {}
+    return dict(raw)
+
+
+def test_vault_worker_env_exact_five(compose):
+    keys = set(env_of("vault-worker", compose).keys())
+    expected = {"TEMPORAL_HOST", "VAULT_PATH", "REPO_URL", "GITHUB_PAT", "GEMINI_API_KEY"}
+    assert keys == expected, (
+        f"vault-worker env keys {keys!r} != expected {expected!r}"
+    )
+
+
+def test_copilot_ui_env_has_temporal_address(compose):
+    keys = env_of("copilot-ui", compose)
+    assert "TEMPORAL_ADDRESS" in keys, (
+        f"copilot-ui env missing TEMPORAL_ADDRESS (apps/copilot_ui/app.py reads it); got keys={set(keys)!r}"
+    )
+
+
+def test_copilot_ui_env_has_no_vault_or_llm_secrets(compose):
+    prohibited = {"VAULT_PATH", "GITHUB_PAT", "GEMINI_API_KEY", "REPO_URL"}
+    present = prohibited & set(env_of("copilot-ui", compose).keys())
+    assert not present, (
+        f"copilot-ui env must not contain vault/LLM secrets, but found: {present!r}"
+    )
+
+
+def test_temporal_ui_has_temporal_address(compose):
+    keys = env_of("temporal-ui", compose)
+    assert "TEMPORAL_ADDRESS" in keys, (
+        f"temporal-ui env missing TEMPORAL_ADDRESS; got keys={set(keys)!r}"
+    )
+
+
+def test_github_runner_env_includes_required(compose):
+    keys = set(env_of("github-runner", compose).keys())
+    required = {"TEMPORAL_HOST", "GITHUB_PAT", "REPO_URL", "RUNNER_NAME"}
+    missing = required - keys
+    assert not missing, f"github-runner env missing required keys: {missing!r}"
+    prohibited = {"VAULT_PATH", "GEMINI_API_KEY"}
+    present = prohibited & keys
+    assert not present, f"github-runner env must not contain: {present!r}"
