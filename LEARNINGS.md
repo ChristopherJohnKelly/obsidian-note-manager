@@ -250,3 +250,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T11:35:03Z
 - REJECTION: Code quality (critical): vault-worker image CMD runs apps.vault_worker.worker, which has no __main__ guard, so the container exits immediately (exit 0) — this PR newly publishes that image to GHCR and documents `docker run` for it as working; correct entrypoint is apps.vault_worker. Same class: github_runner trigger.py enqueues to task queue "obsidian-note-manager" while the worker polls "vault-default", so documented runs hang forever.
+
+## S15 rejection — 2026-08-10T12:03:56Z
+- REJECTION: Code quality (critical): NightWatchmanWorkflow overwrites vault notes with raw unparsed LLM marker text and null frontmatter, then commits and pushes (verified data loss); plus worker.py registers neither FilerIngestionWorkflow/CopilotSessionWorkflow nor ensure_vault_synced/generate_chat_response, and all three production clients omit pydantic_data_converter, so no workflow can run

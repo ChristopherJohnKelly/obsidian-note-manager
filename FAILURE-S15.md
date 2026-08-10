@@ -421,3 +421,38 @@ support — halted for manual Opus steering; read prior sections of this file be
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T12:03:56Z
+
+## Rejection Reason
+Code quality (critical): NightWatchmanWorkflow overwrites vault notes with raw unparsed LLM marker text and null frontmatter, then commits and pushes (verified data loss); plus worker.py registers neither FilerIngestionWorkflow/CopilotSessionWorkflow nor ensure_vault_synced/generate_chat_response, and all three production clients omit pydantic_data_converter, so no workflow can run
+
+## Failed Check
+pr-review-toolkit
+
+## Attempt
+3 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ a723a6a
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+support — halted for manual Opus steering; read prior sections of this file before resuming
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
