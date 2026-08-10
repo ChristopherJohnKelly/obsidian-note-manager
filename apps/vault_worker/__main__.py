@@ -12,7 +12,8 @@ from temporalio.client import Client
 from temporalio.contrib.pydantic import pydantic_data_converter
 
 from apps.vault_worker.activities.vault_manager_client import configure_client
-from apps.vault_worker.activities.llm_provider import GeminiProvider, configure_provider
+from apps.vault_worker.activities.llm import configure_provider
+from apps.vault_worker.activities.llm_provider import GeminiProvider
 from apps.vault_worker.worker import (
     create_workers,
     start_vault_manager,

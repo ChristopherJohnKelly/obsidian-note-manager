@@ -123,3 +123,15 @@ def test_main_configure_calls_present_and_ordered() -> None:
         f"configure_provider (line {cfg_provider_line}) must appear after "
         f"Client.connect (line {connect_line})"
     )
+
+def test_main_module_actually_imports():
+    """ast.parse cannot catch a wrong import path — this can.
+
+    The production Dockerfile CMD is `python3 -m apps.vault_worker`; if
+    __main__ raises ImportError the container dies at startup (shipped
+    reviewer finding: configure_provider imported from the wrong module).
+    Importing executes only module-level imports/defs — main() is guarded.
+    """
+    import importlib
+
+    importlib.import_module("apps.vault_worker.__main__")
