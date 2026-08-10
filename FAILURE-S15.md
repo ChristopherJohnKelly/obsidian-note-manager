@@ -281,3 +281,38 @@ support — halted for manual Opus steering; read prior sections of this file be
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T10:33:53Z
+
+## Rejection Reason
+AC8 — README github-runner env table (README.md:261) documents only TEMPORAL_HOST, omitting the six vars trigger.py:56-66 requires from the container (VAULT_PATH, CONTEXT_CODE, REPO_OWNER, REPO_NAME, GITHUB_TOKEN, PR_BRANCH); test_readme_docs.py:27-29 hardcodes the incomplete list so AC9 pins the defect green. Also copilot-ui run cmd maps -p 8080:8080 while Chainlit listens on 8000, and scripts/run_s15_tests.sh runs only 1 of the 3 tests/ci files.
+
+## Failed Check
+serena
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ a8d59d9
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.

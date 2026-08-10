@@ -238,3 +238,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T10:17:51Z
 - REJECTION: ci.yml:21 `pip install -e apps/vault_worker` fails (no pyproject.toml/setup.py in that dir) — under Actions' `bash -e` the install step exits 1, so CI red on every PR; test_ci_workflow.py:71 asserts that exact broken string, pinning the defect; packages/shared never installed
+
+## S15 rejection — 2026-08-10T10:33:50Z
+- REJECTION: AC8 — README github-runner env table (README.md:261) documents only TEMPORAL_HOST, omitting the six vars trigger.py:56-66 requires from the container (VAULT_PATH, CONTEXT_CODE, REPO_OWNER, REPO_NAME, GITHUB_TOKEN, PR_BRANCH); test_readme_docs.py:27-29 hardcodes the incomplete list so AC9 pins the defect green. Also copilot-ui run cmd maps -p 8080:8080 while Chainlit listens on 8000, and scripts/run_s15_tests.sh runs only 1 of the 3 tests/ci files.
