@@ -127,7 +127,7 @@ class NightWatchmanWorkflow:
                     token=input.github_token,
                     pr_branch=input.pr_branch,
                     title="Night Watchman audit",
-                    body=f"Automated audit fixed {len(proposals)} notes",
+                    body=f"Automated audit fixed {len(operations)} notes",
                     base_branch=input.base_branch,
                 )
             ],
