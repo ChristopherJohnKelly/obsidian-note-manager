@@ -247,3 +247,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T11:04:47Z
 - REJECTION: AC8 — README github-runner run example non-functional (`--workflow ingest` invalid → exit 1, valid values are FilerIngestionWorkflow/NightWatchmanWorkflow; also CMD-only Dockerfile means trailing args replace the command); test_readme_docs.py:76-82 pins it green, and test_build_push_workflow.py:135-146 passes with the build-step paths-filter gate removed
+
+## S15 rejection — 2026-08-10T11:35:03Z
+- REJECTION: Code quality (critical): vault-worker image CMD runs apps.vault_worker.worker, which has no __main__ guard, so the container exits immediately (exit 0) — this PR newly publishes that image to GHCR and documents `docker run` for it as working; correct entrypoint is apps.vault_worker. Same class: github_runner trigger.py enqueues to task queue "obsidian-note-manager" while the worker polls "vault-default", so documented runs hang forever.

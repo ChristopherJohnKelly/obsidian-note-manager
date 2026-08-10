@@ -386,3 +386,38 @@ support — halted for manual Opus steering; read prior sections of this file be
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T11:35:03Z
+
+## Rejection Reason
+Code quality (critical): vault-worker image CMD runs apps.vault_worker.worker, which has no __main__ guard, so the container exits immediately (exit 0) — this PR newly publishes that image to GHCR and documents `docker run` for it as working; correct entrypoint is apps.vault_worker. Same class: github_runner trigger.py enqueues to task queue "obsidian-note-manager" while the worker polls "vault-default", so documented runs hang forever.
+
+## Failed Check
+pr-review-toolkit
+
+## Attempt
+3 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ 82bae97
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+support — halted for manual Opus steering; read prior sections of this file before resuming
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
