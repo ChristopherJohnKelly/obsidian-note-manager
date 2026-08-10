@@ -1,0 +1,80 @@
+"on":
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-vault-worker:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            changed:
+              - apps/vault_worker/**
+              - packages/shared/**
+
+      - name: Login to GHCR
+        if: steps.filter.outputs.changed == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push vault-worker
+        if: steps.filter.outputs.changed == 'true'
+        run: |
+          docker build -t ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest -t ghcr.io/christopherjohnkelly/obsidian-vault-worker:${{ github.sha }} -f apps/vault_worker/Dockerfile .
+          docker push ghcr.io/christopherjohnkelly/obsidian-vault-worker --all-tags
+
+  build-copilot-ui:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            changed:
+              - apps/copilot_ui/**
+              - packages/shared/**
+
+      - name: Login to GHCR
+        if: steps.filter.outputs.changed == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push copilot-ui
+        if: steps.filter.outputs.changed == 'true'
+        run: |
+          docker build -t ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest -t ghcr.io/christopherjohnkelly/obsidian-copilot-ui:${{ github.sha }} -f apps/copilot_ui/Dockerfile .
+          docker push ghcr.io/christopherjohnkelly/obsidian-copilot-ui --all-tags
+
+  build-github-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            changed:
+              - apps/github_runner/**
+
+      - name: Login to GHCR
+        if: steps.filter.outputs.changed == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push github-runner
+        if: steps.filter.outputs.changed == 'true'
+        run: |
+          docker build -t ghcr.io/christopherjohnkelly/obsidian-github-runner:latest -t ghcr.io/christopherjohnkelly/obsidian-github-runner:${{ github.sha }} apps/github_runner/
+          docker push ghcr.io/christopherjohnkelly/obsidian-github-runner --all-tags

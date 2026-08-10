@@ -200,3 +200,96 @@ This project is for personal use only.
 ---
 
 For detailed documentation, see the [docs/](docs/) folder.
+
+## Docker Images
+
+### obsidian-vault-worker
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+```
+
+```bash
+docker run -d \
+  -e VAULT_PATH=/vault \
+  -e REPO_URL=https://github.com/your-org/your-vault \
+  -e GITHUB_PAT=your_pat_here \
+  -e GEMINI_API_KEY=your_gemini_key \
+  -e TEMPORAL_HOST=your-temporal-host:7233 \
+  ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+```
+
+| Variable | Description |
+|---|---|
+| `VAULT_PATH` | Path to the Obsidian vault directory inside the container |
+| `REPO_URL` | GitHub repository URL for the vault |
+| `GITHUB_PAT` | GitHub Personal Access Token with `repo` scope |
+| `GEMINI_API_KEY` | Google Gemini API key for AI processing |
+| `TEMPORAL_HOST` | Temporal server host and port (e.g. `localhost:7233`) |
+
+### obsidian-copilot-ui
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+```
+
+```bash
+docker run -d \
+  -e TEMPORAL_ADDRESS=your-temporal-host:7233 \
+  -e VAULT_PATH=/vault \
+  -p 8000:8000 \
+  ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+```
+
+Chainlit listens on port 8000 inside the container.
+
+| Variable | Description |
+|---|---|
+| `TEMPORAL_ADDRESS` | Temporal server address (host:port) — required; the app fails at startup without it |
+| `VAULT_PATH` | Vault path passed to new copilot sessions (optional, default `/vault`) |
+
+### obsidian-github-runner
+
+```bash
+docker pull ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
+```
+
+```bash
+docker run -d \
+  -e TEMPORAL_HOST=your-temporal-host:7233 \
+  -e VAULT_PATH=/vault \
+  -e CONTEXT_CODE=OBSE \
+  -e REPO_OWNER=your-org \
+  -e REPO_NAME=your-vault \
+  -e GITHUB_TOKEN=your_token_here \
+  -e PR_BRANCH=main \
+  -e RUN_ID=manual-run \
+  ghcr.io/christopherjohnkelly/obsidian-github-runner:latest \
+  python3 trigger.py --workflow FilerIngestionWorkflow
+```
+
+The image's `CMD` is replaced by any trailing `docker run` arguments, so the
+full command must be given. `--workflow` is required; valid values are
+`FilerIngestionWorkflow` and `NightWatchmanWorkflow` (see
+`packages/shared/workflow_names.py`). An optional `--source-path` narrows a
+filer run to one file.
+
+| Variable | Description |
+|---|---|
+| `TEMPORAL_HOST` | Temporal server host and port (optional, default `localhost:7233`) |
+| `VAULT_PATH` | Vault path forwarded to triggered workflows |
+| `CONTEXT_CODE` | Vault context code forwarded to triggered workflows |
+| `REPO_OWNER` | GitHub repository owner for triggered workflows |
+| `REPO_NAME` | GitHub repository name for triggered workflows |
+| `GITHUB_TOKEN` | GitHub token used by triggered workflows |
+| `PR_BRANCH` | Branch name used by triggered workflows |
+| `RUN_ID` | Unique suffix for the workflow id (optional, default `default`) |
+
+## Post-Merge Manual Validation
+
+After merging changes, verify the CI/CD pipeline end-to-end:
+
+1. **Open a test PR** — create a branch with a small change and open a pull request to trigger the CI workflow automatically.
+2. **Trigger `build-push.yml` via `workflow_dispatch`** — go to Actions → Build and Push → Run workflow to manually kick off a build for all three images.
+3. **Verify images in GHCR** — after the workflow completes, navigate to `ghcr.io/christopherjohnkelly` and confirm that `obsidian-vault-worker`, `obsidian-copilot-ui`, and `obsidian-github-runner` all have a freshly pushed `:latest` tag.
+4. **Pull and smoke-test** — run `docker pull ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest` (and the other two images) to confirm they are accessible and pull successfully.
