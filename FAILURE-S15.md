@@ -139,3 +139,39 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T08:18:58Z
+
+## Rejection Reason
+[2026-08-10T08:18:56Z] [ERROR] Serena verification timed out for S15
+TIMEOUT
+
+## Failed Check
+serena
+
+## Attempt
+3 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ a18edf1
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+support — halted for manual Opus steering; read prior sections of this file before resuming
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
