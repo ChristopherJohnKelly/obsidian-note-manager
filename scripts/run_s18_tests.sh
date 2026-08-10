@@ -6,4 +6,4 @@ python3 -m pytest \
     -o addopts= \
     --timeout=540 \
     --timeout-method=thread \
-    tests/unit/test_client_wiring.py
+    tests/e2e/test_night_watchman_write_back.py
