@@ -22,7 +22,7 @@ with workflow.unsafe.imports_passed_through():
         WriteOperation,
     )
     from apps.vault_worker.core.fix_parser import parse_fix
-    from packages.shared.models import AuditProposal, VaultNote, Frontmatter
+    from packages.shared.models import VaultNote
     from packages.shared.workflow_names import QUEUE_DEFAULT, QUEUE_MUTATION
 
 
@@ -70,8 +70,8 @@ class NightWatchmanWorkflow:
         # Step 3: sort then slice (must happen before loop)
         top = sorted(results, key=lambda r: r.score, reverse=True)[:10]
 
-        # Step 4: generate fixes; collect (original_note, fix_str) tuples
-        pending: list[tuple[VaultNote, str]] = []
+        # Step 4+5: generate fixes, parse output, preserve original frontmatter
+        operations = []
         for vr in top:
             self._files_scanned += 1
             note = await workflow.execute_activity(
@@ -90,19 +90,14 @@ class NightWatchmanWorkflow:
                 workflow.logger.warning("generate_fix failed for %s: %s", vr.path, e)
                 continue
             self._proposals_generated += 1
-            pending.append((note, fix_str))
-
-        # Step 5: parse fix output, preserve original frontmatter
-        operations = []
-        for orig_note, fix_str in pending:
             body = parse_fix(fix_str)
             if body is None:
-                workflow.logger.warning("skipping unparseable fix for %s", orig_note.path)
+                workflow.logger.warning("skipping unparseable fix for %s", note.path)
                 continue
             operations.append(WriteOperation(
                 op="save",
-                path=str(orig_note.path),
-                note=VaultNote(path=orig_note.path, frontmatter=orig_note.frontmatter, body=body),
+                path=str(note.path),
+                note=VaultNote(path=note.path, frontmatter=note.frontmatter, body=body),
             ))
 
         # Step 6: write vault via child WriteVaultWorkflow
