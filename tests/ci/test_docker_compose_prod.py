@@ -177,3 +177,60 @@ def test_depends_on_wiring(compose):
         assert "temporal-server" in deps, (
             f"Service {svc!r} must depend on temporal-server, got depends_on: {deps!r}"
         )
+
+# --- C5: credentials, templating, and .env.example coverage ---
+# Added after the attempt-3 rejection: postgres shipped with no credentials
+# (container exits at boot), temporal-server could not reach the DB, the
+# vault-data volume was dropped, and no check tied ${VAR} references to
+# .env.example entries.
+
+def test_postgres_credentials_templated(compose):
+    env = env_of("postgres", compose)
+    assert env.get("POSTGRES_PASSWORD") == "${POSTGRES_PASSWORD}", (
+        f"postgres POSTGRES_PASSWORD must be templated from .env, got {env.get('POSTGRES_PASSWORD')!r}"
+    )
+    assert env.get("POSTGRES_USER") == "temporal"
+    assert "POSTGRES_DB" in env
+
+
+def test_temporal_server_db_connectivity(compose):
+    env = env_of("temporal-server", compose)
+    assert env.get("POSTGRES_SEEDS") == "postgres", (
+        f"temporal-server must point at the postgres service, got {env.get('POSTGRES_SEEDS')!r}"
+    )
+    assert env.get("POSTGRES_USER") == "temporal"
+    assert env.get("POSTGRES_PWD") == "${POSTGRES_PASSWORD}", (
+        f"temporal-server POSTGRES_PWD must be templated from .env, got {env.get('POSTGRES_PWD')!r}"
+    )
+    assert "DB_PORT" in env
+
+
+def test_vault_worker_named_volume(compose):
+    vw_volumes = compose["services"]["vault-worker"].get("volumes", [])
+    assert any(
+        isinstance(v, str) and v.startswith("vault-data:") for v in vw_volumes
+    ), f"vault-worker must mount the vault-data named volume (TRD 7.2), got: {vw_volumes!r}"
+    assert "vault-data" in compose.get("volumes", {}), (
+        "Top-level volumes must declare vault-data"
+    )
+
+
+def test_every_compose_var_has_env_example_entry():
+    """Every ${VAR} referenced in the compose file must be documented."""
+    import pathlib
+    import re as _re
+
+    compose_text = pathlib.Path("docker-compose.prod.yml").read_text()
+    env_example = pathlib.Path(".env.example").read_text()
+    referenced = set(_re.findall(r"\$\{([A-Z_]+)(?::-[^}]*)?\}", compose_text))
+    assert referenced, "expected ${VAR} references in docker-compose.prod.yml"
+    documented = {
+        line.split("=", 1)[0].strip()
+        for line in env_example.splitlines()
+        if "=" in line and not line.lstrip().startswith("#")
+    }
+    missing = referenced - documented
+    assert not missing, (
+        f".env.example is missing entries for compose variables: {sorted(missing)!r}"
+    )
+
