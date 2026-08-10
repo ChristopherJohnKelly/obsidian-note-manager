@@ -23,7 +23,7 @@ tags: [ type/bubble ]
 
 **Feature:** TRD Section 6 Phase 5 (CI/CD & Deployment)
 **Depends On:** S13 (GitHub Runner Refactor), S14 (Copilot UI Refactor) — all three custom images must have valid Dockerfiles
-**Current State:** All three Dockerfiles exist. Tests pass locally. No CI pipeline yet.
+**Current State:** All three Dockerfiles exist — `apps/vault_worker/Dockerfile` and `apps/copilot_ui/Dockerfile` build from the **repo root** (their COPY statements reference `apps/...` and `packages/...`), `apps/github_runner/Dockerfile` builds from `apps/github_runner/`. Tests pass locally. No CI pipeline yet.
 **Target State:** Two GitHub Actions workflows committed; a test PR triggers CI and reports coverage; a merge to `main` triggers image builds and pushes to GHCR.
 
 ---
@@ -54,7 +54,7 @@ tags: [ type/bubble ]
 - [ ] Image builds are conditional: `vault-worker` only rebuilds if `apps/vault_worker/**` or `packages/shared/**` changed; same pattern for the other two
 - [ ] GHCR login uses `GITHUB_TOKEN` (no external secrets needed for package publish)
 - [ ] A README note documents: how to pull and run each image; what environment variables each container requires
-- [ ] Structural tests under `tests/ci/` pin every criterion above by parsing the workflow YAML (`yaml.safe_load`) — not by string-matching raw file text. They MUST assert, at minimum: the ci job's test step invokes pytest with `--cov` and `--cov-fail-under=90`; Python version is `3.12`; the install step uses editable installs and does not install pytest directly; `[tool.coverage.run]` `omit` in `pyproject.toml` contains `apps/copilot_ui/app.py`; build-push defines builds for all three images, each tagged `latest` and `${{ github.sha }}`; each build is gated on a paths filter covering its `apps/{name}/**` (plus `packages/shared/**` where specified); GHCR login uses `GITHUB_TOKEN`; `workflow_dispatch` is among build-push triggers
+- [ ] Structural tests under `tests/ci/` pin every criterion above by parsing the workflow YAML (`yaml.safe_load`) — not by string-matching raw file text. They MUST assert, at minimum: the ci job's test step invokes pytest with `--cov` and `--cov-fail-under=90`; Python version is `3.12`; the install step uses editable installs and does not install pytest directly; `[tool.coverage.run]` `omit` in `pyproject.toml` contains `apps/copilot_ui/app.py`; build-push defines builds for all three images, each tagged `latest` and `${{ github.sha }}`; each build is gated on a paths filter covering its `apps/{name}/**` (plus `packages/shared/**` where specified); GHCR login uses `GITHUB_TOKEN`; `workflow_dispatch` is among build-push triggers; each build job's context and `-f`/dockerfile path match the Dockerfile's own COPY expectations (repo-root context with `-f apps/{name}/Dockerfile` for vault-worker and copilot-ui; `apps/github_runner/` context for github-runner) and the referenced Dockerfile path exists in-tree
 
 ---
 
