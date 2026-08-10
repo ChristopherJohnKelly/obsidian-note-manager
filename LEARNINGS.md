@@ -269,3 +269,6 @@ PRREVIEW:PASS
 
 ## S18 rejection — 2026-08-10T18:54:44Z
 - REJECTION: apps/vault_worker/__main__.py:15 imports configure_provider from activities.llm_provider where it is not defined (it lives in activities.llm) — `python3 -m apps.vault_worker`, the production Dockerfile CMD, dies with ImportError before starting any Worker; the AC3 guard test only ast.parse()s the file so it passes on an unimportable module (0% coverage)
+
+## S18 rejection — 2026-08-10T19:05:39Z
+- REJECTION: 
