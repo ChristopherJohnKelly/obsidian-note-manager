@@ -1,6 +1,13 @@
 services:
   postgres:
     image: postgres:16
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   temporal-server:
     image: temporalio/auto-setup:latest
@@ -8,11 +15,18 @@ services:
       DB: postgres12
       VISIBILITY_DB_PLUGIN: postgres12
       VISIBILITY_DBNAME: temporal_visibility
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   temporal-ui:
     image: temporalio/ui:latest
     environment:
       TEMPORAL_ADDRESS: temporal-server:7233
+    ports:
+      - "8080:8080"
+    depends_on:
+      - temporal-server
 
   vault-worker:
     image: ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
@@ -22,12 +36,18 @@ services:
       REPO_URL: https://github.com/christopherjohnkelly/obsidian-notes
       GITHUB_PAT: ${GITHUB_PAT}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      - temporal-server
 
   copilot-ui:
     image: ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
     environment:
       TEMPORAL_ADDRESS: temporal-server:7233
       TEMPORAL_HOST: temporal-server:7233
+    ports:
+      - "8000:8000"
+    depends_on:
+      - temporal-server
 
   github-runner:
     image: ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
@@ -36,3 +56,8 @@ services:
       GITHUB_PAT: ${GITHUB_PAT}
       REPO_URL: https://github.com/christopherjohnkelly/obsidian-notes
       RUNNER_NAME: obsidian-runner
+    depends_on:
+      - temporal-server
+
+volumes:
+  postgres-data:
