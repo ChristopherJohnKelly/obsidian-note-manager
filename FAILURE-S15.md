@@ -351,3 +351,38 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T11:04:47Z
+
+## Rejection Reason
+AC8 — README github-runner run example non-functional (`--workflow ingest` invalid → exit 1, valid values are FilerIngestionWorkflow/NightWatchmanWorkflow; also CMD-only Dockerfile means trailing args replace the command); test_readme_docs.py:76-82 pins it green, and test_build_push_workflow.py:135-146 passes with the build-step paths-filter gate removed
+
+## Failed Check
+serena
+
+## Attempt
+3 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ ca9d877
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+support — halted for manual Opus steering; read prior sections of this file before resuming
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.

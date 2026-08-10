@@ -244,3 +244,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T10:50:36Z
 - REJECTION: AC8 — README github-runner run example (README.md:257-267) omits the required `--workflow` arg (trigger.py:48, exit 2), so the documented run command is non-functional; test_readme_docs.py:125-131 asserts only that a docker run line exists, pinning it green
+
+## S15 rejection — 2026-08-10T11:04:47Z
+- REJECTION: AC8 — README github-runner run example non-functional (`--workflow ingest` invalid → exit 1, valid values are FilerIngestionWorkflow/NightWatchmanWorkflow; also CMD-only Dockerfile means trailing args replace the command); test_readme_docs.py:76-82 pins it green, and test_build_push_workflow.py:135-146 passes with the build-step paths-filter gate removed
