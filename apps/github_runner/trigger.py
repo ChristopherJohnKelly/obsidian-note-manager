@@ -9,7 +9,9 @@ from temporalio.client import Client
 NIGHT_WATCHMAN_WORKFLOW = "NightWatchmanWorkflow"
 FILER_INGESTION_WORKFLOW = "FilerIngestionWorkflow"
 
-QUEUE_DEFAULT = "obsidian-note-manager"
+# Mirrors packages/shared/workflow_names.py QUEUE_DEFAULT — the runner image
+# ships only trigger.py, so the constant cannot be imported. Keep in sync.
+QUEUE_DEFAULT = "vault-default"
 
 _client = None
 

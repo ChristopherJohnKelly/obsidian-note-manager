@@ -12,4 +12,4 @@ COPY apps/vault_worker apps/vault_worker
 COPY packages packages
 RUN pip install --no-cache-dir -r apps/vault_worker/requirements.txt
 
-CMD ["python3", "-m", "apps.vault_worker.worker"]
+CMD ["python3", "-m", "apps.vault_worker"]
