@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+
+  temporal-server:
+    image: temporalio/auto-setup:latest
+    environment:
+      DB: postgres12
+      VISIBILITY_DB_PLUGIN: postgres12
+      VISIBILITY_DBNAME: temporal_visibility
+
+  temporal-ui:
+    image: temporalio/ui:latest
+
+  vault-worker:
+    image: ghcr.io/christopherjohnkelly/obsidian-vault-worker:latest
+
+  copilot-ui:
+    image: ghcr.io/christopherjohnkelly/obsidian-copilot-ui:latest
+
+  github-runner:
+    image: ghcr.io/christopherjohnkelly/obsidian-github-runner:latest
