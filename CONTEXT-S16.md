@@ -3,7 +3,7 @@ step_id: S16
 step_slug: production-docker-compose
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S16-production-docker-compose.md
-attempts: 0
+attempts: 2
 bubble_hash: 3e2a46350935481e0da2bbf22e03fe0c98f65a41b5d7a49fcc273c2c6589017b
 ---
 ## Goal
@@ -230,3 +230,14 @@ docker compose -f docker-compose.prod.yml up -d
 - [S15] Structural tests that only substring-match (e.g., "pip install -e", filter presence without gating, hardcoded image names) are tautological and pin defects green — applicable here because the required `tests/ci/` suite must parse the compose file and assert real structural properties, not just presence of strings
 - [S15] Coverage flags scoped to `.` measure legacy `src_v2/` and break the threshold; scripts must scope coverage to `apps` + `packages` — applicable here because `scripts/run_s16_tests.sh` is in scope and must not repeat that mistake
 - [S18] Production clients omit `pydantic_data_converter` and `configure_client()` is never called, so registered workflows raise at runtime — applicable here because the deployment doc's post-merge health check depends on S18 workers actually serving every workflow the compose stack starts
+
+## Prior failures
+### Attempt 1
+Verification (serena) rejected the prior attempt: copilot-ui env sets TEMPORAL_HOST but apps/copilot_ui/app.py:16 requires TEMPORAL_ADDRESS (crash at startup), and test_docker_compose_prod.py:231 exact-equality assertion pins this defect green; temporal-ui also omits TEMPORAL_ADDRESS so it cannot reach temporal-server, breaking the documented health check in docs/deployment.md:56
+
+The implementation that was rejected is no longer in your working tree — this branch has been reset to the prepare commit. Re-implement to address the rejection above before re-issuing a PASS. Pay particular attention to any acceptance criteria the rejection cites by name.
+
+### Attempt 2
+## Prior failures
+
+
