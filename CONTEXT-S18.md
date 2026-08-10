@@ -3,7 +3,7 @@ step_id: S18
 step_slug: integration-hardening
 feature_branch: feat/OBSE-P5-temporal-soa-migration
 bubble_ref: OBSE-P5-S18-integration-hardening.md
-attempts: 0
+attempts: 3
 bubble_hash: 4d548e4c824c413ee8480a77de556244d001d733c027644f842fda1349cd8ff6
 ---
 ## Goal
@@ -120,3 +120,19 @@ All three fixes are behaviourally testable in the existing Temporal test environ
 - [S15:C-] NightWatchmanWorkflow was verified to overwrite notes with raw marker text and empty frontmatter, then commit and push (data loss) — applicable here because AC4/AC5 exist specifically to make the parse-and-preserve fix behaviourally provable and the skip path byte-identical.
 - [Orchestration] One `pytest` at a time; check `ps aux | grep pytest` before starting; `pytest-timeout` isn't installed so `--timeout=N` is silently ignored — applicable here because S18 runs the full suite plus new behavioural tests and prior stuck-subprocess incidents in this feature came from parallel invocations.
 - [Orchestration] Scratch/debug tests must be prefixed `test_explore_*` (or `test_debug_*`, etc.); >3 such files in a session triggers wind-down — applicable here because parsing/marker-format investigation may tempt exploratory tests during the parse-helper implementation.
+
+## Prior failures
+### Attempt 1
+Verification (pr-review-toolkit) rejected the prior attempt: Code quality (critical): parse_fix_body returns '' (not None) for an empty %%FILE%% block, bypassing the `if body is None` skip guard at night_watchman.py:107 and overwriting the note with an empty body — confirmed end-to-end via save_note dispatch; the frontmatter-strip regex also deletes real body content when it opens with a `---` rule
+
+The implementation that was rejected is no longer in your working tree — this branch has been reset to the prepare commit. Re-implement to address the rejection above before re-issuing a PASS. Pay particular attention to any acceptance criteria the rejection cites by name.
+
+### Attempt 2
+Verification (pr-review-toolkit) rejected the prior attempt: Code quality (critical): parse_fix_body silently deletes body content when the LLM body opens with a Markdown `---` thematic break (and leaks raw YAML into the body on an unterminated fence), then commits and pushes the corrupted note; separately, configure_client() is never called in production, so the newly-registered ensure_vault_synced raises RuntimeError and — with no retry_policy at read_vault.py:42 — retries unboundedly, hanging ReadVault/NightWatchman/FilerIngestion workflows forever.
+
+The implementation that was rejected is no longer in your working tree — this branch has been reset to the prepare commit. Re-implement to address the rejection above before re-issuing a PASS. Pay particular attention to any acceptance criteria the rejection cites by name.
+
+### Attempt 3
+## Attempt 3 failure — AC1 enumeration test conflicts with existing test_worker.py
+
+
