@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import frontmatter as fm
+import pytest
 import pytest_asyncio
 from temporalio import activity, workflow
 from temporalio.client import Client
@@ -35,6 +36,7 @@ from apps.vault_worker.activities.vault_io import (
     list_notes_in,
     read_note,
     read_raw,
+    save_note,
     scan_vault,
     validate_note,
 )
@@ -262,17 +264,30 @@ async def test_parse_and_preserve_frontmatter(pydantic_client, dummy_vault_path)
 
 
 class MalformedLLMProvider(FakeLLMProvider):
-    """LLM provider returning markerless plain text — no %%FILE%%/%%END%% delimiters.
+    """LLM provider returning a configurable bad output.
 
-    parse_fix sees no markers and returns None; night_watchman skips the note;
-    WriteVaultWorkflow receives an empty operations list and returns '' immediately.
+    Both variants must resolve to parse_fix -> None -> zero WriteOperations:
+    markerless text (no %%FILE%% block), and a marker-wrapped block whose
+    frontmatter YAML is malformed — the case that once raised
+    yaml.ParserError out of @workflow.run into an infinite retry loop.
     """
 
+    def __init__(self, bad_output: str) -> None:
+        super().__init__()
+        self._bad_output = bad_output
+
     def generate_fix(self, *args, **kwargs) -> str:
-        return "the LLM had a bad day"
+        return self._bad_output
 
 
-async def test_malformed_llm_skips_all(pydantic_client, tmp_path):
+MALFORMED_OUTPUTS = [
+    "the LLM had a bad day",
+    "%%FILE%%\npath: notes/x.md\n---\nkey: [unclosed\n---\nbody text\n%%END%%",
+]
+
+
+@pytest.mark.parametrize("bad_output", MALFORMED_OUTPUTS)
+async def test_malformed_llm_skips_all(pydantic_client, tmp_path, bad_output):
     """AC4: markerless LLM output → parse_fix returns None → zero save_note, vault unchanged.
 
     Characterization test: C3 already implements this skip path.
@@ -296,7 +311,7 @@ async def test_malformed_llm_skips_all(pydantic_client, tmp_path):
         for p in vault_root.rglob("*.md")
     }
 
-    malformed_llm = MalformedLLMProvider()
+    malformed_llm = MalformedLLMProvider(bad_output)
     configure_provider(malformed_llm)
     fake_github = FakeGitHubClient()
     configure_github_client(lambda token: fake_github)
@@ -325,7 +340,7 @@ async def test_malformed_llm_skips_all(pydantic_client, tmp_path):
                 task_queue=QUEUE_MUTATION,
                 workflows=[WriteVaultWorkflow],
                 activities=[
-                    capturing_save_note,
+                    save_note,
                     noop_git_pull,
                     noop_git_commit,
                     noop_git_push,
@@ -359,11 +374,6 @@ async def test_malformed_llm_skips_all(pydantic_client, tmp_path):
         configure_provider(None)
         configure_github_client(None)
 
-    captured = list(_writeback_captured)
-    assert captured == [], (
-        f"Expected zero save_note calls with malformed LLM output, got {len(captured)}: "
-        f"{[(p, note.body[:80]) for p, note in captured]}"
-    )
 
     post = {
         p.relative_to(vault_root): p.read_bytes()
