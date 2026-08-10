@@ -21,7 +21,7 @@ from apps.vault_worker.core.response_parser import parse_llm_response
 _FENCE_RE = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n", re.DOTALL)
 
 
-def parse_fix(raw: str) -> str | None:
+def _parse_fix_inner(raw: str) -> str | None:
     """Extract the body from a %%FILE%%...%%END%% LLM response block.
 
     Returns a non-empty body string, or None when the response should be
@@ -38,10 +38,7 @@ def parse_fix(raw: str) -> str | None:
     - A '---' pair that encloses non-mapping text is a pair of thematic
       breaks, not frontmatter: the content is kept verbatim.
     """
-    try:
-        blocks = parse_llm_response(raw)
-    except Exception:
-        return None
+    blocks = parse_llm_response(raw)
     if not blocks:
         return None
     content = blocks[0].get("content") or ""
@@ -50,7 +47,10 @@ def parse_fix(raw: str) -> str | None:
     if m:
         try:
             meta = yaml.safe_load(m.group(1))
-        except yaml.YAMLError:
+        except Exception:
+            # Not only YAMLError: safe_load raises ValueError on
+            # calendar-invalid dates (created: 2025-02-30) and
+            # RecursionError on deep nesting. Any failure → skip.
             return None
         if isinstance(meta, dict):
             body = content[m.end():].strip()
@@ -64,3 +64,16 @@ def parse_fix(raw: str) -> str | None:
         body = content.strip()
 
     return body or None
+
+
+def parse_fix(raw: str) -> str | None:
+    """Total wrapper — the documented contract, made structural.
+
+    Whatever _parse_fix_inner (or anything it calls) raises, the caller
+    inside @workflow.run sees None and skips the note. An escaped
+    exception here is an infinite workflow-task retry loop.
+    """
+    try:
+        return _parse_fix_inner(raw)
+    except Exception:
+        return None

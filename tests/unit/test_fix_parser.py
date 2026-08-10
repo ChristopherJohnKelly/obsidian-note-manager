@@ -61,3 +61,17 @@ def test_markerless_output_returns_none():
 def test_never_raises_on_garbage(garbage):
     result = parse_fix(garbage)
     assert result is None or isinstance(result, str)
+
+def test_calendar_invalid_date_in_fence_returns_none():
+    # Reviewer finding: yaml.safe_load raises ValueError (not YAMLError)
+    # on out-of-range dates — ordinary LLM frontmatter output.
+    raw = _block("---\ncreated: 2025-02-30\n---\nbody text")
+    assert parse_fix(raw) is None
+
+
+def test_deeply_nested_yaml_returns_none():
+    # Reviewer finding: RecursionError on pathological nesting.
+    deep = "[" * 5000 + "]" * 5000
+    raw = _block(f"---\nkey: {deep}\n---\nbody")
+    assert parse_fix(raw) is None or isinstance(parse_fix(raw), str)
+
