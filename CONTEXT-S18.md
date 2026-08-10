@@ -1,4 +1,26 @@
 ---
+step_id: S18
+step_slug: integration-hardening
+feature_branch: feat/OBSE-P5-temporal-soa-migration
+bubble_ref: OBSE-P5-S18-integration-hardening.md
+attempts: 0
+bubble_hash: 4d548e4c824c413ee8480a77de556244d001d733c027644f842fda1349cd8ff6
+---
+## Goal
+See the bubble body below (`OBSE-P5-S18-integration-hardening.md`) — the bubble carries the
+canonical goal statement for this step.
+
+## Files in scope
+See the bubble body below for declared scope. Ralph's PLAN must mirror it
+into `bubble_scope`.
+
+## Red-green-refactor checklist
+Derived from the bubble body's cycle list below. Ralph's PLAN turns each
+into a `## CYCLE Cn` section.
+
+## Bubble (verbatim)
+
+---
 type: bubble
 status: pending
 step_id: S18
@@ -84,3 +106,17 @@ All three fixes are behaviourally testable in the existing Temporal test environ
 ## 8. Reference Material
 
 `generate_fix`'s docstring (activities/llm.py): "Returns raw LLM response with %%FILE%%...%%END%% markers." The marker format is the contract to parse — read how the FakeLLM emits it in the fixtures before writing the parser.
+
+## Steering from prior steps
+- [S04] Temporal's default converter can't serialize `VaultNote.path: Path`; pydantic types require `pydantic_data_converter` on the Client — applicable here because AC3 mandates the converter on all four production `Client.connect` sites so pydantic payloads round-trip.
+- [S06] The vault-worker `%%FILE%%...%%END%%` marker format is NOT src_v2's `%%FILE: path%%` — do not copy the old parser — applicable here because the NightWatchman parse fix must implement the correct current-format parser, not the legacy one.
+- [S06] `FakeLLMProvider.FAKE_FIX` contains `{original_path}` as a literal placeholder (not str-formatted); tests should assert `%%FILE%%`/`%%END%%` presence, not path values — applicable here because the parse behavioural test uses FakeLLM's marker-wrapped output and must assert on markers/frontmatter, not path substitution.
+- [S07] Workflows returning pydantic models with `Path` fields hang unless the client is configured with `pydantic_data_converter` — applicable here because production clients dispatching these workflows currently omit it, which is exactly AC3.
+- [S08] Mock activities can be registered under production names via `@activity.defn(name="save_note")` so workflows pick them up transparently — applicable here because the NightWatchman behavioural tests must intercept vault writes without editing workflow code.
+- [S08] `create_workers(client)` may only be called once per client — the Temporal bridge forbids overlapping registrations on the same task queue, so all worker-registration assertions must be combined into a single test — applicable here because AC1 adds a registration-enumeration test that shares the session client with other worker-registration tests.
+- [S09] Same one-`create_workers`-per-client constraint (bridge rejects re-registration on the same queue) — applicable here because the new enumerate-and-assert registration test must not spawn a second worker on `vault-default`/`vault-mutation-queue`.
+- [S13:C-] Trigger sites must dispatch to `vault-default` (TRD §4.5), not `obsidian-note-manager`, or workflows land on a queue no worker polls — applicable here because AC2 requires reading each client's queue name and registering `FilerIngestionWorkflow`/`CopilotSessionWorkflow` on the queue the clients actually dispatch to.
+- [S15:C-] `apps.vault_worker.worker` has no `__main__` guard and the trigger's queue name diverged from the worker's, so the documented run path was non-functional — applicable here because S18's worker/client wiring must produce an actually runnable end-to-end system, not just green tests.
+- [S15:C-] NightWatchmanWorkflow was verified to overwrite notes with raw marker text and empty frontmatter, then commit and push (data loss) — applicable here because AC4/AC5 exist specifically to make the parse-and-preserve fix behaviourally provable and the skip path byte-identical.
+- [Orchestration] One `pytest` at a time; check `ps aux | grep pytest` before starting; `pytest-timeout` isn't installed so `--timeout=N` is silently ignored — applicable here because S18 runs the full suite plus new behavioural tests and prior stuck-subprocess incidents in this feature came from parallel invocations.
+- [Orchestration] Scratch/debug tests must be prefixed `test_explore_*` (or `test_debug_*`, etc.); >3 such files in a session triggers wind-down — applicable here because parsing/marker-format investigation may tempt exploratory tests during the parse-helper implementation.
