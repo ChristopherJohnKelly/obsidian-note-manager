@@ -262,3 +262,7 @@ TIMEOUT
 
 ## S18 rejection — 2026-08-10T18:08:26Z
 - REJECTION: AC4 unmet — parse_fix raises yaml.ParserError out of @workflow.run on malformed LLM YAML (confirmed: NightWatchmanWorkflow stuck in workflow-task retry loop), and still leaks raw YAML / deletes body content instead of skipping; AC5's on-disk byte-identity assertion is vacuous because save_note is stubbed
+
+## S18 rejection — 2026-08-10T18:40:18Z
+- REJECTION: Code quality (critical): [2026-08-10T18:40:17Z] [WARN ] pr-review-toolkit timed out for S18 — treating as PASS (non-blocking)
+PRREVIEW:PASS

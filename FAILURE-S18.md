@@ -107,3 +107,42 @@ support — halted for manual Opus steering; read prior sections of this file be
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T18:40:22Z
+
+## Rejection Reason
+Code quality (critical): [2026-08-10T18:40:17Z] [WARN ] pr-review-toolkit timed out for S18 — treating as PASS (non-blocking)
+PRREVIEW:PASS
+
+## Failed Check
+pr-review-toolkit
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#40 — step branch `pr/S18` @ edaa6b7
+
+## Files changed on step branch vs feature
+- apps/copilot_ui/app.py
+- apps/github_runner/trigger.py
+- apps/vault_worker/__main__.py
+- apps/vault_worker/core/fix_parser.py
+- apps/vault_worker/worker.py
+- apps/vault_worker/workflows/night_watchman.py
+- scripts/run_s18_tests.sh
+- tests/e2e/test_night_watchman_write_back.py
+- tests/unit/test_client_wiring.py
+- tests/unit/test_fix_parser.py
+- tests/unit/test_worker.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
