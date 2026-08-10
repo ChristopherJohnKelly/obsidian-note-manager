@@ -146,3 +146,41 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T18:54:48Z
+
+## Rejection Reason
+apps/vault_worker/__main__.py:15 imports configure_provider from activities.llm_provider where it is not defined (it lives in activities.llm) — `python3 -m apps.vault_worker`, the production Dockerfile CMD, dies with ImportError before starting any Worker; the AC3 guard test only ast.parse()s the file so it passes on an unimportable module (0% coverage)
+
+## Failed Check
+serena
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#40 — step branch `pr/S18` @ 3aa8bfd
+
+## Files changed on step branch vs feature
+- apps/copilot_ui/app.py
+- apps/github_runner/trigger.py
+- apps/vault_worker/__main__.py
+- apps/vault_worker/core/fix_parser.py
+- apps/vault_worker/worker.py
+- apps/vault_worker/workflows/night_watchman.py
+- scripts/run_s18_tests.sh
+- tests/e2e/test_night_watchman_write_back.py
+- tests/unit/test_client_wiring.py
+- tests/unit/test_fix_parser.py
+- tests/unit/test_worker.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
