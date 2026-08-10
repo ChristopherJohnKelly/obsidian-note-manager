@@ -253,3 +253,6 @@ TIMEOUT
 
 ## S15 rejection — 2026-08-10T12:03:56Z
 - REJECTION: Code quality (critical): NightWatchmanWorkflow overwrites vault notes with raw unparsed LLM marker text and null frontmatter, then commits and pushes (verified data loss); plus worker.py registers neither FilerIngestionWorkflow/CopilotSessionWorkflow nor ensure_vault_synced/generate_chat_response, and all three production clients omit pydantic_data_converter, so no workflow can run
+
+## S18 rejection — 2026-08-10T14:03:44Z
+- REJECTION: Code quality (critical): parse_fix_body returns '' (not None) for an empty %%FILE%% block, bypassing the `if body is None` skip guard at night_watchman.py:107 and overwriting the note with an empty body — confirmed end-to-end via save_note dispatch; the frontmatter-strip regex also deletes real body content when it opens with a `---` rule
