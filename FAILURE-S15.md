@@ -211,3 +211,38 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T09:43:31Z
+
+## Rejection Reason
+AC8 — README documents `docker pull` for the three images but no run instructions for any of them (no `docker run`/compose invocation in README.md:204-253; repeat of LEARNINGS.md:211 rejection), and the vault-worker env table (README.md:216-220) omits required `GEMINI_API_KEY` (llm_provider.py:82-84, no default, raises ValueError) and `TEMPORAL_HOST` (__main__.py:22); tests/ci/test_readme_docs.py:55-63 pins the incomplete list and asserts nothing about run instructions, so AC9 does not cover AC8
+
+## Failed Check
+serena
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ 5cc7e65
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docs.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.

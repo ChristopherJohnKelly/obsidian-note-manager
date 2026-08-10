@@ -232,3 +232,6 @@ TIMEOUT
 ## S15 rejection — 2026-08-10T08:34:42Z
 - REJECTION: [2026-08-10T08:34:41Z] [ERROR] Serena verification timed out for S15
 TIMEOUT
+
+## S15 rejection — 2026-08-10T09:43:28Z
+- REJECTION: AC8 — README documents `docker pull` for the three images but no run instructions for any of them (no `docker run`/compose invocation in README.md:204-253; repeat of LEARNINGS.md:211 rejection), and the vault-worker env table (README.md:216-220) omits required `GEMINI_API_KEY` (llm_provider.py:82-84, no default, raises ValueError) and `TEMPORAL_HOST` (__main__.py:22); tests/ci/test_readme_docs.py:55-63 pins the incomplete list and asserts nothing about run instructions, so AC9 does not cover AC8
