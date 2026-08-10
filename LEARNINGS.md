@@ -228,3 +228,7 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 ## S15 rejection — 2026-08-10T08:18:58Z
 - REJECTION: [2026-08-10T08:18:56Z] [ERROR] Serena verification timed out for S15
 TIMEOUT
+
+## S15 rejection — 2026-08-10T08:34:42Z
+- REJECTION: [2026-08-10T08:34:41Z] [ERROR] Serena verification timed out for S15
+TIMEOUT
