@@ -278,3 +278,6 @@ PRREVIEW:PASS
 
 ## S16 rejection — 2026-08-10T20:31:44Z
 - REJECTION: copilot-ui env sets TEMPORAL_HOST but apps/copilot_ui/app.py:16 requires TEMPORAL_ADDRESS (crash at startup), and test_docker_compose_prod.py:231 exact-equality assertion pins this defect green; temporal-ui also omits TEMPORAL_ADDRESS so it cannot reach temporal-server, breaking the documented health check in docs/deployment.md:56
+
+## S16 rejection — 2026-08-10T21:26:42Z
+- REJECTION: postgres service has no POSTGRES_PASSWORD/USER (container exits at boot) and temporal-server lacks POSTGRES_SEEDS/USER/PWD, so the stack cannot deploy; vault-worker volume dropped (breaks TRD §7.2); .env.example never updated (AC-8); coverage test neutered by hardcoding ${VAR}s
