@@ -33,3 +33,40 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T15:09:53Z
+
+## Rejection Reason
+Code quality (critical): parse_fix_body silently deletes body content when the LLM body opens with a Markdown `---` thematic break (and leaks raw YAML into the body on an unterminated fence), then commits and pushes the corrupted note; separately, configure_client() is never called in production, so the newly-registered ensure_vault_synced raises RuntimeError and — with no retry_policy at read_vault.py:42 — retries unboundedly, hanging ReadVault/NightWatchman/FilerIngestion workflows forever.
+
+## Failed Check
+pr-review-toolkit
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#40 — step branch `pr/S18` @ 57aa0c5
+
+## Files changed on step branch vs feature
+- apps/copilot_ui/app.py
+- apps/github_runner/trigger.py
+- apps/vault_worker/__main__.py
+- apps/vault_worker/core/night_watchman_parser.py
+- apps/vault_worker/worker.py
+- apps/vault_worker/workflows/night_watchman.py
+- scripts/run_s18_tests.sh
+- tests/e2e/test_night_watchman_parse.py
+- tests/unit/test_pydantic_data_converter.py
+- tests/unit/test_worker.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.

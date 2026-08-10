@@ -256,3 +256,6 @@ TIMEOUT
 
 ## S18 rejection — 2026-08-10T14:03:44Z
 - REJECTION: Code quality (critical): parse_fix_body returns '' (not None) for an empty %%FILE%% block, bypassing the `if body is None` skip guard at night_watchman.py:107 and overwriting the note with an empty body — confirmed end-to-end via save_note dispatch; the frontmatter-strip regex also deletes real body content when it opens with a `---` rule
+
+## S18 rejection — 2026-08-10T15:09:49Z
+- REJECTION: Code quality (critical): parse_fix_body silently deletes body content when the LLM body opens with a Markdown `---` thematic break (and leaks raw YAML into the body on an unterminated fence), then commits and pushes the corrupted note; separately, configure_client() is never called in production, so the newly-registered ensure_vault_synced raises RuntimeError and — with no retry_policy at read_vault.py:42 — retries unboundedly, hanging ReadVault/NightWatchman/FilerIngestion workflows forever.
