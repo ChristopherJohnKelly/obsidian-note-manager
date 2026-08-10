@@ -221,3 +221,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S15 rejection — 2026-08-10T06:02:30Z
 - REJECTION: build-push.yml never pushes — all three jobs run `docker build` with no `docker push`/`push: true`/`--all-tags`, so no image reaches GHCR (build-push.yml:35-42,69-76,102-108), contradicting the objective/target state/required output; no test in tests/ci/ asserts a push, pinning the defect green
+
+## S15 rejection — 2026-08-10T07:32:12Z
+- REJECTION: ci.yml:27 uses `--cov=.`, measuring legacy src_v2/ and yielding 78.78% coverage — CI fails every PR despite all 314 tests passing (93.47% with correct apps+packages scoping); test_ci_workflow.py:83-89 asserts only substring presence, pinning it green. Also README.md:56-68 omits obsidian-copilot-ui env vars (TEMPORAL_ADDRESS required at apps/copilot_ui/app.py:14), and test_build_push_workflow.py:292-306 never asserts build `context` despite the AC requiring it (context_hint defined but unused).
