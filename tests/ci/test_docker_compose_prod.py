@@ -102,3 +102,78 @@ def test_github_runner_env_includes_required(compose):
     prohibited = {"VAULT_PATH", "GEMINI_API_KEY"}
     present = prohibited & keys
     assert not present, f"github-runner env must not contain: {present!r}"
+
+
+# --- C3: ports, volumes, depends_on ---
+
+def _normalise_port(port_entry):
+    """Return (host_port, container_port) as ints from string or dict form."""
+    if isinstance(port_entry, str):
+        parts = port_entry.split(":")
+        return int(parts[0]), int(parts[1])
+    # dict form: {published: ..., target: ...}
+    return int(port_entry["published"]), int(port_entry["target"])
+
+
+def test_only_temporal_ui_and_copilot_ui_publish_host_ports(compose):
+    no_ports_services = {"postgres", "temporal-server", "vault-worker", "github-runner"}
+    for svc in no_ports_services:
+        cfg = compose["services"][svc]
+        assert "ports" not in cfg, (
+            f"Service {svc!r} must not have a 'ports' key (expose-only or none), but found: {cfg['ports']!r}"
+        )
+
+    temporal_ui_ports = compose["services"]["temporal-ui"].get("ports", [])
+    assert temporal_ui_ports, "temporal-ui must declare ports"
+    normalised = [_normalise_port(p) for p in temporal_ui_ports]
+    assert (8080, 8080) in normalised, (
+        f"temporal-ui must publish 8080:8080, got ports: {temporal_ui_ports!r}"
+    )
+
+    copilot_ui_ports = compose["services"]["copilot-ui"].get("ports", [])
+    assert copilot_ui_ports, "copilot-ui must declare ports"
+    normalised = [_normalise_port(p) for p in copilot_ui_ports]
+    assert (8000, 8000) in normalised, (
+        f"copilot-ui must publish 8000:8000, got ports: {copilot_ui_ports!r}"
+    )
+
+
+def test_postgres_named_volume(compose):
+    pg_volumes = compose["services"]["postgres"].get("volumes", [])
+    assert pg_volumes, "postgres service must declare a 'volumes' key"
+    found = any(
+        (isinstance(v, str) and v.startswith("postgres-data:"))
+        for v in pg_volumes
+    )
+    assert found, (
+        f"postgres service must mount 'postgres-data:/var/lib/postgresql/data', got: {pg_volumes!r}"
+    )
+
+    top_volumes = compose.get("volumes", {})
+    assert "postgres-data" in top_volumes, (
+        f"Top-level 'volumes' must declare 'postgres-data', got: {list(top_volumes.keys())!r}"
+    )
+
+
+def _depends_on_names(service_cfg):
+    """Return the set of dependency names from depends_on (list or dict form)."""
+    dep = service_cfg.get("depends_on")
+    if dep is None:
+        return set()
+    if isinstance(dep, list):
+        return set(dep)
+    # dict form: {service_name: {condition: ...}}
+    return set(dep.keys())
+
+
+def test_depends_on_wiring(compose):
+    temporal_server_deps = _depends_on_names(compose["services"]["temporal-server"])
+    assert "postgres" in temporal_server_deps, (
+        f"temporal-server must depend on postgres, got depends_on: {temporal_server_deps!r}"
+    )
+
+    for svc in ("temporal-ui", "vault-worker", "copilot-ui", "github-runner"):
+        deps = _depends_on_names(compose["services"][svc])
+        assert "temporal-server" in deps, (
+            f"Service {svc!r} must depend on temporal-server, got depends_on: {deps!r}"
+        )
