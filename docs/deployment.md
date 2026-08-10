@@ -68,4 +68,4 @@ Check for `vault-default` namespace in Temporal UI to confirm vault-worker regis
 
 ## Health Check Limitations
 
-End-to-end workflow validation (trigger.py, data-converter wiring) is a post-merge manual step — those components live outside this bubble's scope (S15 and S18 steering).
+End-to-end workflow validation (trigger.py, data-converter wiring) is a post-merge manual step — those components are not covered by this deployment guide.
