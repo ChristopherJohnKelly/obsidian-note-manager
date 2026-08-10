@@ -212,3 +212,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S15 rejection — 2026-08-10T00:44:29Z
 - REJECTION: AC4 unmet — build-push.yml's copilot-ui job uses build context `apps/copilot_ui/` but that Dockerfile's `COPY apps/copilot_ui`/`COPY packages` require repo-root context, so the image cannot build; vault-worker build target `apps/vault_worker/` has no Dockerfile at all, and no structural test covers build context
+
+## S15 rejection — 2026-08-10T01:50:16Z
+- REJECTION: README documents `ghcr.io/christopherjohnkelly/{vault-worker,copilot-ui,github-runner}` but build-push.yml publishes `obsidian-`prefixed images (README.md:211,230,247 vs build-push.yml:31,56,80); tests/ci/test_readme_docker_docs.py hardcodes the wrong names, pinning the defect
