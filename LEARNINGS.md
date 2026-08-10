@@ -215,3 +215,6 @@ Feed-forward knowledge between Ralph sessions. Append-only — do not modify exi
 
 ## S15 rejection — 2026-08-10T01:50:16Z
 - REJECTION: README documents `ghcr.io/christopherjohnkelly/{vault-worker,copilot-ui,github-runner}` but build-push.yml publishes `obsidian-`prefixed images (README.md:211,230,247 vs build-push.yml:31,56,80); tests/ci/test_readme_docker_docs.py hardcodes the wrong names, pinning the defect
+
+## S15 rejection — 2026-08-10T03:03:38Z
+- REJECTION: build-push.yml paths-filter outputs are never consumed — no `if:` on any job or step (build-push.yml:36-44, 72-80, 107-115), so all three images rebuild/push unconditionally, violating the conditional-build criterion; tests/ci/test_build_push_workflow.py:104 asserts only filter presence, not gating, pinning the defect green

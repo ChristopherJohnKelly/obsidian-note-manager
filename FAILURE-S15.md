@@ -31,3 +31,38 @@ queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-att
 Address the rejection reason above before re-attempting this step. If prior
 attempt sections exist above, re-read them — the same check failing twice
 means the prior guidance was not applied or was insufficient.
+
+
+---
+
+## cc-obsidian attempt — 2026-08-10T03:03:41Z
+
+## Rejection Reason
+build-push.yml paths-filter outputs are never consumed — no `if:` on any job or step (build-push.yml:36-44, 72-80, 107-115), so all three images rebuild/push unconditionally, violating the conditional-build criterion; tests/ci/test_build_push_workflow.py:104 asserts only filter presence, not gating, pinning the defect green
+
+## Failed Check
+serena
+
+## Attempt
+2 of max 5 (escalates to status=support at 3)
+
+## PR
+#39 — step branch `pr/S15` @ 98243d7
+
+## Files changed on step branch vs feature
+- .github/workflows/build-push.yml
+- .github/workflows/ci.yml
+- README.md
+- scripts/run_s15_tests.sh
+- tests/ci/__init__.py
+- tests/ci/test_build_push_workflow.py
+- tests/ci/test_ci_workflow.py
+- tests/ci/test_readme_docker_docs.py
+
+## Next status
+queued — step branch rebriefed to prepare commit + new CONTEXT; will be re-attempted automatically
+
+## What to fix
+Address the rejection reason above before re-attempting this step. If prior
+attempt sections exist above, re-read them — the same check failing twice
+means the prior guidance was not applied or was insufficient.
