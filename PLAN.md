@@ -25,6 +25,9 @@ feat/OBSE-P5-temporal-soa-migration
 | S16 | Production Docker Compose | step/OBSE-P5-S16-production-docker-compose | S09,S13,S14,S15,S17,S18 | done | #41 | 1 |  |
 | S17 | Monorepo Path Hygiene | step/OBSE-P5-S17-monorepo-path-hygiene | — | done | #30 | 1 |  |
 | S18 | Integration Hardening | step/OBSE-P5-S18-integration-hardening | S10,S11,S12,S15 | done | #40 | 1 |  |
+| S19 | Night Watchman PR Flow | step/OBSE-P5-S19-night-watchman-pr-flow | S18 | queued |  | 0 |  |
+| S20 | Runner and Trigger Cutover | step/OBSE-P5-S20-runner-and-trigger-cutover | S19 | queued |  | 0 |  |
+| S21 | Production Compose Hardening | step/OBSE-P5-S21-production-compose-hardening | S19,S20 | queued |  | 0 |  |
 
 ## Status Transitions
 
@@ -41,4 +44,5 @@ review ──► queued           (cc-obsidian rejects; resets for retry)
 - S10, S11, S12 can run in parallel once their dependencies are met
 - S13, S14 can run in parallel (both depend on S11+S12+S17; S13 also needs S10)
 - S16 is the final integration step; requires all prior steps complete
+- S19 to S21 come from the pre-deployment review of 1 Nov 2026 and run in order: S19 settles the Night Watchman input that S20's trigger builds, and S21's compose file follows the variables S19 and S20 read.
 - S17 is a mechanical hygiene bubble with no upstream dependencies — it can run at any time and only needs to ship before S13/S14 begin. S08 and S09 do NOT depend on S17 (their bubble paths are already correct).
